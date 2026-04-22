@@ -28,11 +28,20 @@ final class WeatherService: ObservableObject {
                 from: "https://api.weather.gov/points/\(latitude),\(longitude)"
             )
 
-            // Fetch forecast, hourly, and observation stations concurrently
-            async let forecastFetch: NWSForecastResponse = fetchJSON(from: pointResponse.properties.forecast)
-            async let hourlyFetch: NWSForecastResponse = fetchJSON(from: pointResponse.properties.forecastHourly)
-            async let stationsFetch: NWSObservationStationsResponse = fetchJSON(from: pointResponse.properties.observationStations)
-            let (forecastResponse, hourlyResponse, stationCollection) = try await (forecastFetch, hourlyFetch, stationsFetch)
+            // Start all three fetches concurrently. Task{} inherits @MainActor so
+            // Decodable init stays on the main actor — avoiding nonisolated-context warnings.
+            let forecastTask = Task<NWSForecastResponse, Error> {
+                try await self.fetchJSON(from: pointResponse.properties.forecast)
+            }
+            let hourlyTask = Task<NWSForecastResponse, Error> {
+                try await self.fetchJSON(from: pointResponse.properties.forecastHourly)
+            }
+            let stationsTask = Task<NWSObservationStationsResponse, Error> {
+                try await self.fetchJSON(from: pointResponse.properties.observationStations)
+            }
+            let forecastResponse = try await forecastTask.value
+            let hourlyResponse = try await hourlyTask.value
+            let stationCollection = try await stationsTask.value
 
             guard let period = forecastResponse.properties.periods.first else {
                 forecast = nil

@@ -140,10 +140,10 @@ struct RadarMapView: UIViewRepresentable {
     final class Coordinator: NSObject, MKMapViewDelegate {
         let onSelectRadarSite: (RadarSite) -> Void
         var currentConfiguration: RadarLayerConfiguration?
-        var radarOverlay: NWSRadarTileOverlay?
+        fileprivate var radarOverlay: NWSRadarTileOverlay?
         var lastCoordinate: CLLocationCoordinate2D?
         var lastSpanDelta: Double?
-        var radarSiteAnnotations: [RadarSiteAnnotation] = []
+        fileprivate var radarSiteAnnotations: [RadarSiteAnnotation] = []
         var radarSiteIDs: [String] = []
         var selectedRadarSiteID: String?
         var stormTrackOverlays: [MKPolyline] = []
@@ -200,7 +200,7 @@ struct RadarMapView: UIViewRepresentable {
     }
 }
 
-private final class RadarSiteAnnotation: NSObject, MKAnnotation {
+fileprivate final class RadarSiteAnnotation: NSObject, MKAnnotation {
     let site: RadarSite
     var coordinate: CLLocationCoordinate2D { site.coordinate }
     var title: String? { site.name }
@@ -211,7 +211,7 @@ private final class RadarSiteAnnotation: NSObject, MKAnnotation {
     }
 }
 
-private final class NWSRadarTileOverlay: MKTileOverlay {
+fileprivate final class NWSRadarTileOverlay: MKTileOverlay {
     let configuration: RadarLayerConfiguration
     private let tileDimension = 256.0
     private let worldWidth = MKMapSize.world.width
