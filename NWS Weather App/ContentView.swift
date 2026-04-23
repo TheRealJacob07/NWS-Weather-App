@@ -51,6 +51,7 @@ struct ContentView: View {
             guard !hasLoadedSavedLocations else { return }
             savedLocations = SavedLocation.decode(from: savedLocationsData)
             hasLoadedSavedLocations = true
+            location.getLocation()
         }
         .onChange(of: savedLocations) { _, newValue in
             savedLocationsData = SavedLocation.encode(newValue)
@@ -156,38 +157,44 @@ struct ContentView: View {
     // MARK: - Hero card
 
     private var heroCard: some View {
-        VStack(alignment: .leading) {
-            HStack(alignment: .top) {
-                Text(forecastPeriodTitle)
-                    .font(.title)
-                    .foregroundStyle(.white.opacity(0.72))
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    if let forecast = weatherService.forecast {
+                        Text(forecast.periodName)
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.white.opacity(0.55))
+                    }
+
+                    Text(weatherService.forecast?.temperature ?? "--")
+                        .font(.system(size: 84, weight: .thin, design: .rounded))
+                }
 
                 Spacer()
 
                 Image(systemName: backgroundStyle.symbolName)
-                    .font(.system(size: 34, weight: .medium))
+                    .font(.system(size: 54, weight: .light))
                     .foregroundStyle(.white.opacity(0.9))
+                    .padding(.top, 8)
             }
 
-            HStack(alignment: .top, spacing: -3) {
-                Text(forecastTemperature)
-                    .font(.system(size: 72, weight: .thin, design: .rounded))
+            if let forecast = weatherService.forecast {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(forecast.shortForecast)
+                        .font(.title3.weight(.medium))
+                        .foregroundStyle(.white.opacity(0.82))
 
-                Spacer()
+                    HStack(spacing: 20) {
+                        Label("Wind \(forecast.wind)", systemImage: "wind")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.65))
 
-                VStack(alignment: .leading, spacing: -2) {
-                    Spacer()
-                    Text(forecastSummary)
-                        .font(.headline)
-                        .foregroundStyle(.white.opacity(0.84))
-                    Text(forecastWind)
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.75))
-                    Text(forecastRain)
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.75))
-                    Spacer()
+                        Label(forecast.rain, systemImage: "drop.fill")
+                            .font(.subheadline)
+                            .foregroundStyle(.cyan.opacity(0.75))
+                    }
                 }
+                .padding(.top, 8)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -295,15 +302,17 @@ struct ContentView: View {
                 selectedPage = page
             }
         } label: {
-            VStack(spacing: 2) {
+            VStack(spacing: 3) {
                 Image(systemName: page.symbolName)
                     .font(.system(size: 15, weight: .semibold))
+                Text(page.title)
+                    .font(.system(size: 9, weight: .semibold))
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .foregroundStyle(isSelected ? .white : .white.opacity(0.68))
+            .padding(.vertical, 10)
+            .foregroundStyle(isSelected ? .white : .white.opacity(0.55))
             .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(isSelected ? .white.opacity(0.16) : .clear)
             )
         }
@@ -322,26 +331,6 @@ struct ContentView: View {
         if let activeSavedLocation { return activeSavedLocation.name }
         if let forecast = weatherService.forecast { return "\(forecast.locationName), \(forecast.state)" }
         return "Current Location"
-    }
-
-    private var forecastPeriodTitle: String {
-        weatherService.forecast?.periodName ?? "Live conditions"
-    }
-
-    private var forecastTemperature: String {
-        weatherService.forecast?.temperature ?? "--"
-    }
-
-    private var forecastSummary: String {
-        weatherService.forecast?.shortForecast ?? "Load your location to pull the current NWS forecast."
-    }
-
-    private var forecastWind: String {
-        weatherService.forecast.map { "Wind \($0.wind)" } ?? "Wind data unavailable"
-    }
-
-    private var forecastRain: String {
-        weatherService.forecast?.rain ?? "Rain chance unavailable"
     }
 
     private var weatherRequestID: String {

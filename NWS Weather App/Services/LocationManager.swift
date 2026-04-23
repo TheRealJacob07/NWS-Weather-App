@@ -1,7 +1,8 @@
 import CoreLocation
 internal import Combine
 
-class SimpleLocation: NSObject, ObservableObject, CLLocationManagerDelegate {
+@MainActor
+final class SimpleLocation: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let manager = CLLocationManager()
 
     @Published var coordinate: CLLocationCoordinate2D?
@@ -12,16 +13,24 @@ class SimpleLocation: NSObject, ObservableObject, CLLocationManagerDelegate {
     override init() {
         super.init()
         manager.delegate = self
+        manager.desiredAccuracy = kCLLocationAccuracyKilometer
     }
 
     func getLocation() {
+        guard CLLocationManager.locationServicesEnabled() else {
+            coordinate = nil
+            latitude = nil
+            longitude = nil
+            statusMessage = "Location Services are turned off. Enable them in Settings."
+            return
+        }
+
         let status = manager.authorizationStatus
         if status == .notDetermined {
             statusMessage = "Requesting location permission..."
             manager.requestWhenInUseAuthorization()
         } else if status == .authorizedWhenInUse || status == .authorizedAlways {
-            statusMessage = "Getting your location..."
-            manager.requestLocation()
+            requestLocation()
         } else {
             statusMessage = "Location access is unavailable. Enable permission in Settings."
         }
@@ -30,25 +39,41 @@ class SimpleLocation: NSObject, ObservableObject, CLLocationManagerDelegate {
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         let status = manager.authorizationStatus
         if status == .authorizedWhenInUse || status == .authorizedAlways {
-            statusMessage = "Getting your location..."
-            manager.requestLocation()
+            requestLocation()
         } else if status == .denied || status == .restricted {
+            coordinate = nil
+            latitude = nil
+            longitude = nil
             statusMessage = "Location permission denied or restricted."
         }
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        coordinate = locations.first?.coordinate
-        if let coordinate {
-            latitude = coordinate.latitude
-            longitude = coordinate.longitude
-            statusMessage = "Location loaded."
-        }
+        guard let location = locations.first else { return }
+        update(with: location)
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        coordinate = nil
         latitude = nil
         longitude = nil
         statusMessage = "Unable to get location: \(error.localizedDescription)"
+    }
+
+    private func requestLocation() {
+        statusMessage = "Getting your location..."
+        if let existingLocation = manager.location {
+            update(with: existingLocation)
+            return
+        }
+
+        manager.requestLocation()
+    }
+
+    private func update(with location: CLLocation) {
+        coordinate = location.coordinate
+        latitude = location.coordinate.latitude
+        longitude = location.coordinate.longitude
+        statusMessage = "Location loaded."
     }
 }

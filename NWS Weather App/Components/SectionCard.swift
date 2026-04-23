@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SectionCard<Content: View>: View {
     let title: String
-    let subtitle: String
+    var subtitle: String? = nil
     @ViewBuilder let content: Content
 
     var body: some View {
@@ -10,9 +10,11 @@ struct SectionCard<Content: View>: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.title3.weight(.semibold))
-                Text(subtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.58))
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.58))
+                }
             }
 
             content
