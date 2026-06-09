@@ -17,14 +17,9 @@ final class SimpleLocation: NSObject, ObservableObject, CLLocationManagerDelegat
     }
 
     func getLocation() {
-        guard CLLocationManager.locationServicesEnabled() else {
-            coordinate = nil
-            latitude = nil
-            longitude = nil
-            statusMessage = "Location Services are turned off. Enable them in Settings."
-            return
-        }
-
+        // Note: deliberately not calling CLLocationManager.locationServicesEnabled()
+        // here — it blocks the main thread (UI-unresponsiveness warning). If
+        // services are off, authorization callbacks/didFailWithError handle it.
         let status = manager.authorizationStatus
         if status == .notDetermined {
             statusMessage = "Requesting location permission..."

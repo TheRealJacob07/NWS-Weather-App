@@ -69,40 +69,34 @@ enum RadarProduct: String, CaseIterable, Identifiable {
         self != .velocity
     }
 
+    /// Noise filtering only applies to raw single-site reflectivity feeds.
+    /// The regional/national mosaics (QCD) are already quality-controlled.
+    func supportsNoiseFilter(scope: RadarScope) -> Bool {
+        scope == .local && (self == .compositeReflectivity || self == .baseReflectivity)
+    }
+
     func configuration(
         for coordinate: CLLocationCoordinate2D?,
         scope: RadarScope,
-        nearestSite: RadarSite?
+        nearestSite: RadarSite?,
+        noiseFilter: RadarNoiseFilter = .off
     ) -> RadarLayerConfiguration? {
         switch self {
-        case .compositeReflectivity:
+        case .compositeReflectivity, .baseReflectivity:
             if scope == .local, let nearestSite {
                 let key = nearestSite.radarID.lowercased()
                 return RadarLayerConfiguration(
                     serviceURL: "https://opengeo.ncep.noaa.gov/geoserver/\(key)/ows",
-                    layerName: "\(key)_sr_bref",
-                    sourceLabel: nearestSite.radarID
+                    layerName: nearestSite.reflectivityLayerName,
+                    sourceLabel: nearestSite.radarID,
+                    minimumDBZ: noiseFilter.minimumDBZ
                 )
             }
             let domain = RadarDomain.domain(for: coordinate)
+            let product = self == .compositeReflectivity ? "cref_qcd" : "bref_qcd"
             return RadarLayerConfiguration(
-                serviceURL: "https://opengeo.ncep.noaa.gov/geoserver/\(domain.pathComponent)/\(domain.pathComponent)_cref_qcd/ows",
-                layerName: "\(domain.pathComponent)_cref_qcd",
-                sourceLabel: domain.shortSourceLabel
-            )
-        case .baseReflectivity:
-            if scope == .local, let nearestSite {
-                let key = nearestSite.radarID.lowercased()
-                return RadarLayerConfiguration(
-                    serviceURL: "https://opengeo.ncep.noaa.gov/geoserver/\(key)/ows",
-                    layerName: "\(key)_sr_bref",
-                    sourceLabel: nearestSite.radarID
-                )
-            }
-            let domain = RadarDomain.domain(for: coordinate)
-            return RadarLayerConfiguration(
-                serviceURL: "https://opengeo.ncep.noaa.gov/geoserver/\(domain.pathComponent)/\(domain.pathComponent)_bref_qcd/ows",
-                layerName: "\(domain.pathComponent)_bref_qcd",
+                serviceURL: "https://opengeo.ncep.noaa.gov/geoserver/\(domain.pathComponent)/\(domain.pathComponent)_\(product)/ows",
+                layerName: "\(domain.pathComponent)_\(product)",
                 sourceLabel: domain.shortSourceLabel
             )
         case .echoTops:
@@ -123,9 +117,43 @@ enum RadarProduct: String, CaseIterable, Identifiable {
             let key = nearestSite.radarID.lowercased()
             return RadarLayerConfiguration(
                 serviceURL: "https://opengeo.ncep.noaa.gov/geoserver/\(key)/ows",
-                layerName: "\(key)_sr_bvel",
+                layerName: nearestSite.velocityLayerName,
                 sourceLabel: nearestSite.radarID
             )
+        }
+    }
+}
+
+/// RadarScope-style clutter filter. Pixels whose palette color maps to
+/// reflectivity below the threshold are removed from single-site tiles.
+enum RadarNoiseFilter: String, CaseIterable, Identifiable {
+    case off
+    case light
+    case strong
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .off: return "Off"
+        case .light: return "Light"
+        case .strong: return "Strong"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .off: return "Show the raw radar feed"
+        case .light: return "Hide returns below 10 dBZ"
+        case .strong: return "Hide returns below 20 dBZ"
+        }
+    }
+
+    var minimumDBZ: Double? {
+        switch self {
+        case .off: return nil
+        case .light: return 10
+        case .strong: return 20
         }
     }
 }

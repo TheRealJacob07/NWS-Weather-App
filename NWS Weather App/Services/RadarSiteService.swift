@@ -1,4 +1,5 @@
 import CoreLocation
+import Foundation
 internal import Combine
 
 @MainActor
@@ -7,20 +8,43 @@ final class RadarSiteService: ObservableObject {
     @Published private(set) var sites: [RadarSite] = []
     @Published private(set) var isLoading = false
 
-    private var cachedSites: [RadarSite] = []
+    private var cachedBaseSites: [RadarSite] = []
+    private static let iso8601 = ISO8601DateFormatter()
+    /// A radar is considered offline if no Level II data has been received recently.
+    private static let onlineFreshnessWindow: TimeInterval = 30 * 60
 
     func loadNearestSite(for coordinate: CLLocationCoordinate2D) async {
         isLoading = true
         defer { isLoading = false }
 
         do {
-            if cachedSites.isEmpty {
-                cachedSites = try await fetchSites()
+            // Fetch the site list (cached for the session) and live station
+            // statuses (refreshed every load) concurrently.
+            async let statusTask = fetchStationStatuses()
+
+            if cachedBaseSites.isEmpty {
+                cachedBaseSites = try await fetchSites()
             }
-            sites = cachedSites
+            let statuses = await statusTask
+            sites = cachedBaseSites.map { site in
+                var site = site
+                if let status = statuses[site.radarID] {
+                    site.kind = status.kind
+                    site.isOnline = status.isOnline
+                } else if !statuses.isEmpty {
+                    // Known to NWS WFS but absent from the status feed.
+                    site.kind = Self.fallbackKind(for: site.radarID)
+                    site.isOnline = false
+                } else {
+                    // Status feed unavailable — assume online so radar stays usable.
+                    site.kind = Self.fallbackKind(for: site.radarID)
+                }
+                return site
+            }
 
             let currentLocation = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-            nearestSite = cachedSites.min {
+            let onlineSites = sites.filter(\.isOnline)
+            nearestSite = (onlineSites.isEmpty ? sites : onlineSites).min {
                 currentLocation.distance(from: CLLocation(latitude: $0.latitude, longitude: $0.longitude)) <
                 currentLocation.distance(from: CLLocation(latitude: $1.latitude, longitude: $1.longitude))
             }
@@ -40,6 +64,49 @@ final class RadarSiteService: ObservableObject {
             .prefix(limit)
             .map { $0 }
     }
+
+    // MARK: - Station status (api.weather.gov)
+
+    private struct StationStatus {
+        let kind: RadarStationKind
+        let isOnline: Bool
+    }
+
+    private func fetchStationStatuses() async -> [String: StationStatus] {
+        guard let url = URL(string: "https://api.weather.gov/radar/stations") else { return [:] }
+        var request = URLRequest(url: url)
+        request.setValue("application/geo+json", forHTTPHeaderField: "Accept")
+        request.setValue("NWS Weather App (jacob@example.com)", forHTTPHeaderField: "User-Agent")
+
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let httpResponse = response as? HTTPURLResponse,
+              200..<300 ~= httpResponse.statusCode,
+              let stations = try? JSONDecoder().decode(RadarStationsResponse.self, from: data) else {
+            return [:]
+        }
+
+        var statuses: [String: StationStatus] = [:]
+        for feature in stations.features {
+            let props = feature.properties
+            let kind: RadarStationKind = props.stationType == "TDWR" ? .tdwr : .nexrad
+
+            var isOnline = false
+            if let timestamp = props.latency?.levelTwoLastReceivedTime,
+               let received = Self.iso8601.date(from: timestamp) {
+                isOnline = Date().timeIntervalSince(received) < Self.onlineFreshnessWindow
+            }
+            statuses[props.id] = StationStatus(kind: kind, isOnline: isOnline)
+        }
+        return statuses
+    }
+
+    /// Used when the status feed is unavailable. All TDWR IDs start with "T";
+    /// the only WSR-88D that also does is TJUA (San Juan).
+    private static func fallbackKind(for radarID: String) -> RadarStationKind {
+        radarID.hasPrefix("T") && radarID != "TJUA" ? .tdwr : .nexrad
+    }
+
+    // MARK: - Site list (opengeo WFS)
 
     private func fetchSites() async throws -> [RadarSite] {
         let url = URL(string: "https://opengeo.ncep.noaa.gov/geoserver/nws/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=nws:radar_sites")!
@@ -87,4 +154,24 @@ final class RadarSiteService: ObservableObject {
         }
         return String(text[startRange.upperBound..<endRange.lowerBound])
     }
+}
+
+// MARK: - api.weather.gov radar station types
+
+private struct RadarStationsResponse: Decodable {
+    let features: [RadarStationFeature]
+}
+
+private struct RadarStationFeature: Decodable {
+    let properties: RadarStationProperties
+}
+
+private struct RadarStationProperties: Decodable {
+    let id: String
+    let stationType: String?
+    let latency: RadarStationLatency?
+}
+
+private struct RadarStationLatency: Decodable {
+    let levelTwoLastReceivedTime: String?
 }
