@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NWS Weather App — Support Guide</title>
+<style>
+  :root {
+    --bg: #0b0e17;
+    --card: #141927;
+    --card-border: rgba(255,255,255,0.08);
+    --text: #e8ecf4;
+    --muted: #9aa3b5;
+    --accent: #4fc3f7;
+    --accent2: #b388ff;
+    --warn: #ffb74d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: linear-gradient(180deg, #0b0e17 0%, #080a10 100%);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 40px 24px 80px; }
+  header { text-align: center; margin-bottom: 40px; }
+  header h1 {
+    font-size: 2rem; margin: 0 0 8px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  header p { color: var(--muted); margin: 0; }
+  nav {
+    background: var(--card); border: 1px solid var(--card-border);
+    border-radius: 14px; padding: 18px 22px; margin-bottom: 32px;
+  }
+  nav strong { display: block; margin-bottom: 8px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  nav a { color: var(--accent); text-decoration: none; margin-right: 16px; white-space: nowrap; line-height: 2; }
+  nav a:hover { text-decoration: underline; }
+  section {
+    background: var(--card); border: 1px solid var(--card-border);
+    border-radius: 14px; padding: 24px 28px; margin-bottom: 24px;
+  }
+  h2 { font-size: 1.25rem; margin: 0 0 14px; color: var(--accent); }
+  h3 { font-size: 1rem; margin: 20px 0 6px; color: var(--text); }
+  p { margin: 8px 0; }
+  .muted { color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.95rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--card-border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  details {
+    border: 1px solid var(--card-border); border-radius: 10px;
+    padding: 12px 16px; margin: 10px 0; background: rgba(255,255,255,0.02);
+  }
+  summary { cursor: pointer; font-weight: 600; }
+  summary:hover { color: var(--accent); }
+  details p { margin-top: 10px; }
+  .badge {
+    display: inline-block; font-size: 0.72rem; font-weight: 700;
+    padding: 2px 8px; border-radius: 20px; margin-left: 6px; vertical-align: middle;
+    background: rgba(79,195,247,0.15); color: var(--accent);
+  }
+  .tip {
+    border-left: 3px solid var(--accent); background: rgba(79,195,247,0.06);
+    padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 12px 0; font-size: 0.95rem;
+  }
+  .warn { border-left-color: var(--warn); background: rgba(255,183,77,0.06); }
+  footer { text-align: center; color: var(--muted); font-size: 0.85rem; margin-top: 40px; }
+  code { background: rgba(255,255,255,0.07); padding: 1px 6px; border-radius: 5px; font-size: 0.9em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>NWS Weather App</h1>
+  <p>Support Guide — everything you need to get the most out of the app</p>
+</header>
+
+<nav>
+  <strong>Contents</strong>
+  <a href="#start">Getting Started</a>
+  <a href="#home">Home Screen</a>
+  <a href="#locations">Locations</a>
+  <a href="#radar">Radar</a>
+  <a href="#ai">Weather AI</a>
+  <a href="#tools">NWS Tools</a>
+  <a href="#troubleshooting">Troubleshooting</a>
+  <a href="#faq">FAQ</a>
+  <a href="#data">Data Sources</a>
+</nav>
+
+<section id="start">
+  <h2>Getting Started</h2>
+  <p>On first launch, the app asks for permission to use your location. Allow it so the app can show the official National Weather Service forecast for where you are. You can also skip device location entirely and add cities manually (see <a href="#locations" style="color:var(--accent)">Locations</a>).</p>
+  <div class="tip warn"><strong>Coverage note:</strong> Forecasts, alerts, and radar come from the U.S. National Weather Service, so the app works for locations in the United States and its territories. Locations outside NWS coverage won't load a forecast.</div>
+</section>
+
+<section id="home">
+  <h2>Home Screen</h2>
+  <p>The home screen is a single scrolling view. From top to bottom you'll see:</p>
+  <table>
+    <tr><th>Card</th><th>What it shows</th></tr>
+    <tr><td>Current conditions</td><td>Temperature, conditions, and high/low for the active location.</td></tr>
+    <tr><td>Alert banners</td><td>Any active NWS alerts for your location. Tap a banner for full details.</td></tr>
+    <tr><td>AI Summary</td><td>A plain-language briefing generated on your device. Tap it to open Weather AI chat.</td></tr>
+    <tr><td>Hourly forecast</td><td>Hour-by-hour temperatures and conditions.</td></tr>
+    <tr><td>Daily forecast</td><td>The multi-day NWS outlook.</td></tr>
+    <tr><td>Condition tiles</td><td>Feels-like, humidity, wind, dew point, visibility, pressure, and more from the nearest observation station.</td></tr>
+    <tr><td>Forecast details</td><td>The full written NWS forecast discussion for the current period.</td></tr>
+    <tr><td>UV &amp; Sun</td><td>UV index, sunrise/sunset arc, daylight stats, and a burn-time estimate.</td></tr>
+    <tr><td>Air quality</td><td>Current air quality index for your area.</td></tr>
+    <tr><td>Allergens</td><td>Pollen levels (estimated in most U.S. locations — see FAQ).</td></tr>
+  </table>
+  <p><strong>Refresh:</strong> pull down anywhere on the home screen, or use Refresh in the bottom-bar menu.</p>
+  <p><strong>Bottom bar:</strong> the map icon opens Radar, the center capsule (showing your location name) opens Locations, and the ⋯ menu holds Ask Weather AI, Refresh, Use Current Location, and NWS Resources.</p>
+</section>
+
+<section id="locations">
+  <h2>Locations</h2>
+  <h3>Add a city</h3>
+  <p>Open Locations from the bottom bar, type a city name in the search field, then tap a suggestion to add it. The app switches to it immediately.</p>
+  <h3>Switch locations</h3>
+  <p>Tap any saved place in the list, or tap <strong>My Location</strong> to return to device GPS.</p>
+  <h3>Remove a location</h3>
+  <p>Swipe left on a saved place and tap delete.</p>
+  <p class="muted">Saved places are stored only on your device.</p>
+</section>
+
+<section id="radar">
+  <h2>Radar</h2>
+  <p>Tap the map icon in the bottom bar to open the full-screen radar. All imagery comes directly from NOAA.</p>
+
+  <h3>Products</h3>
+  <table>
+    <tr><th>Product</th><th>Use it for</th></tr>
+    <tr><td>Composite</td><td>Broad storm view — the best default for "is it raining near me?"</td></tr>
+    <tr><td>Base Refl</td><td>Low-level returns from official NOAA regional mosaics.</td></tr>
+    <tr><td>Echo Tops</td><td>Storm height and intensity — taller tops mean stronger storms.</td></tr>
+    <tr><td>National Rain</td><td>Country-wide precipitation at a glance.</td></tr>
+    <tr><td>Velocity</td><td>Inbound/outbound winds from the nearest radar site — useful for rotation.</td></tr>
+  </table>
+
+  <h3>Scope, layers &amp; filters</h3>
+  <p><strong>Local / National</strong> switches between single-site radar near you and the zoomed-out national view. In Local scope you can tap a radar site on the map to switch to its feed.</p>
+  <p><strong>Overlay toggles:</strong> Lightning (GOES satellite strike density), Alerts (active warning polygons), and Tracks (storm direction markers). Your choices are remembered.</p>
+  <p><strong>Noise filter</strong> (Local reflectivity only): Off, Light (hides returns below 10 dBZ), or Strong (below 20 dBZ) to clean up clutter near the radar.</p>
+
+  <h3>Timeline &amp; inspector</h3>
+  <p>Use the timeline to play or scrub a loop of the past 30 or 50 minutes in 5-minute steps. Tap anywhere on the radar map to inspect what's at that point.</p>
+</section>
+
+<section id="ai">
+  <h2>Weather AI <span class="badge">On-device</span></h2>
+  <p>Weather AI is a chat assistant grounded in the latest NWS forecast, observations, and alerts for your active location. It runs entirely on your device using Apple Intelligence — your questions and weather data never leave your phone.</p>
+  <p>Open it by tapping the AI summary card or choosing <strong>Ask Weather AI</strong> from the bottom-bar menu. Ask things like "Will it rain during my commute?" or "Should I water the lawn today?"</p>
+  <h3>Requirements</h3>
+  <p>Weather AI requires an Apple Intelligence–capable device with Apple Intelligence turned on in Settings. If it's off or unsupported, the app tells you directly in the summary card; everything else in the app works normally without it.</p>
+</section>
+
+<section id="tools">
+  <h2>NWS Tools</h2>
+  <p>Choose <strong>NWS Resources</strong> from the ⋯ menu to browse official NOAA forecast-center products, rendered right in the app:</p>
+  <table>
+    <tr><th>Product</th><th>Description</th><th>Source</th></tr>
+    <tr><td>Surface Analysis</td><td>Current fronts, highs, and lows.</td><td>NOAA WPC</td></tr>
+    <tr><td>Forecast Chart</td><td>National synoptic forecast, days 1–3.</td><td>NOAA WPC</td></tr>
+    <tr><td>Rainfall Forecast</td><td>Official rainfall totals through 5 days.</td><td>NOAA WPC</td></tr>
+    <tr><td>Flash Flood Risk</td><td>Excessive rainfall outlooks, days 1–3.</td><td>NOAA WPC</td></tr>
+    <tr><td>Severe Outlook</td><td>Severe thunderstorm outlooks, days 1–3.</td><td>NOAA SPC</td></tr>
+    <tr><td>GOES Satellite</td><td>Live GeoColor imagery, East &amp; West.</td><td>NOAA NESDIS</td></tr>
+  </table>
+  <p>The Status section at the bottom shows the app's current weather-data status, active location, and saved-place count — useful when troubleshooting.</p>
+</section>
+
+<section id="troubleshooting">
+  <h2>Troubleshooting</h2>
+
+  <details>
+    <summary>No forecast is loading</summary>
+    <p>Check that the location is inside the United States — the NWS only covers U.S. locations. Then pull down to refresh, and verify your internet connection. The Status section in NWS Tools shows the exact weather-service status message.</p>
+  </details>
+
+  <details>
+    <summary>"My Location" isn't working</summary>
+    <p>Open iOS Settings → Privacy &amp; Security → Location Services and make sure the app has location access. Alternatively, add your city manually in Locations — device location is never required.</p>
+  </details>
+
+  <details>
+    <summary>The AI summary or chat says it's unavailable</summary>
+    <p>Weather AI needs Apple Intelligence. Turn it on in iOS Settings → Apple Intelligence &amp; Siri. On unsupported devices the feature stays off, but all forecasts, radar, and alerts work normally. If you see "the model is still getting ready," the on-device model is downloading — check back shortly.</p>
+  </details>
+
+  <details>
+    <summary>Radar shows no imagery</summary>
+    <p>Try switching products (Composite is most reliable), or switch the scope between Local and National. Velocity requires a nearby radar site — if none is in range, pick a site manually in Local scope. NOAA radar servers occasionally lag; wait a minute and refresh.</p>
+  </details>
+
+  <details>
+    <summary>The radar looks speckled or noisy</summary>
+    <p>That's ground clutter in the raw single-site feed. Set the Noise filter to Light or Strong while in Local scope.</p>
+  </details>
+
+  <details>
+    <summary>Alerts aren't appearing</summary>
+    <p>Alert banners only appear when the NWS has issued an active alert for your exact location. On the radar, make sure the Alerts overlay toggle is on to see warning polygons.</p>
+  </details>
+
+  <details>
+    <summary>Pollen data says "estimated"</summary>
+    <p>Measured pollen data isn't available for most of the U.S., so the app shows an estimate. This is expected behavior, not an error.</p>
+  </details>
+</section>
+
+<section id="faq">
+  <h2>FAQ</h2>
+
+  <details>
+    <summary>Where does the weather data come from?</summary>
+    <p>Forecasts, alerts, and observations come from the National Weather Service (api.weather.gov). Radar imagery comes from NOAA radar servers. UV, sun, and air-quality data come from Open-Meteo. See Data Sources below.</p>
+  </details>
+
+  <details>
+    <summary>Is my data private?</summary>
+    <p>Yes. Saved locations are stored only on your device, and Weather AI runs entirely on-device — chat conversations are never sent to a server.</p>
+  </details>
+
+  <details>
+    <summary>Does the app work outside the U.S.?</summary>
+    <p>No — the National Weather Service covers the U.S. and its territories (including Alaska, Hawaii, the Caribbean, and Guam). Forecasts won't load for international locations.</p>
+  </details>
+
+  <details>
+    <summary>How current is the radar?</summary>
+    <p>Radar tiles update every few minutes as NOAA publishes them. The timeline lets you loop the last 30 or 50 minutes. Satellite imagery in NWS Tools refreshes roughly every 5 minutes.</p>
+  </details>
+
+  <details>
+    <summary>What do dBZ values mean on the radar?</summary>
+    <p>dBZ measures reflectivity — how much precipitation the radar sees. Roughly: under 20 is very light or clutter, 20–40 is light-to-moderate rain, 40–55 is heavy rain, and 55+ can indicate hail.</p>
+  </details>
+</section>
+
+<section id="data">
+  <h2>Data Sources</h2>
+  <table>
+    <tr><th>Data</th><th>Source</th></tr>
+    <tr><td>Forecasts, observations, alerts</td><td>National Weather Service (api.weather.gov)</td></tr>
+    <tr><td>Radar imagery</td><td>NOAA NEXRAD / MRMS mosaics (opengeo.ncep.noaa.gov, Iowa Environmental Mesonet cache)</td></tr>
+    <tr><td>Lightning</td><td>NOAA nowCOAST — GOES GLM strike density</td></tr>
+    <tr><td>Forecast-center charts</td><td>NOAA WPC, SPC, and NESDIS</td></tr>
+    <tr><td>UV index &amp; sun data</td><td>Open-Meteo forecast API</td></tr>
+    <tr><td>Air quality &amp; pollen</td><td>Open-Meteo air quality API (CAMS model)</td></tr>
+    <tr><td>AI summaries &amp; chat</td><td>Apple Intelligence on-device model (no server)</td></tr>
+  </table>
+</section>
+
+<footer>
+  NWS Weather App Support Guide · All weather data courtesy of NOAA / National Weather Service and Open-Meteo
+</footer>
+
+</div>
+</body>
+</html>
