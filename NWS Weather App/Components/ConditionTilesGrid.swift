@@ -27,11 +27,11 @@ struct ConditionTilesGrid: View {
                 detailText: "The dew point is \(observation.dewpoint) right now."
             )
 
-            ConditionTile(icon: "wind", title: "Wind", value: observation.windSpeed) {
+            ConditionTile(icon: "wind", title: "Wind", value: windValue) {
                 HStack(spacing: 6) {
                     Image(systemName: "location.north.fill")
                         .font(.caption2)
-                    Text("From the \(observation.windDirection)")
+                    Text(windDetail)
                 }
             }
 
@@ -56,6 +56,24 @@ struct ConditionTilesGrid: View {
                 detailText: "Chance of precipitation \(forecast?.periodName.lowercased() ?? "today")."
             )
         }
+    }
+
+    /// Stations often report null wind (calm or sensor gap) — fall back to
+    /// the NWS forecast wind rather than showing "--".
+    private var windValue: String {
+        if observation.windSpeed != "--" { return observation.windSpeed }
+        if let forecast, !forecast.windSpeedText.isEmpty { return forecast.windSpeedText }
+        return "Calm"
+    }
+
+    private var windDetail: String {
+        if observation.windSpeed != "--", observation.windDirection != "--" {
+            return "From the \(observation.windDirection)"
+        }
+        if let forecast, !forecast.windDirectionText.isEmpty {
+            return "Forecast: from the \(forecast.windDirectionText)"
+        }
+        return "No station wind report"
     }
 
     private var feelsLikeDetail: String {

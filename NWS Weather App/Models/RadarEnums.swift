@@ -15,8 +15,15 @@ enum RadarScope: String, CaseIterable, Identifiable {
 
     var description: String {
         switch self {
-        case .local: return "The map is centered on your selected location."
-        case .national: return "The map is zoomed out to show the broader national rain pattern."
+        case .local: return "Single-site radar centered on your selected location."
+        case .national: return "Zoomed out to the broader national rain pattern."
+        }
+    }
+
+    var spanDelta: Double {
+        switch self {
+        case .local: return 1.8
+        case .national: return 38.0
         }
     }
 }
@@ -92,11 +99,23 @@ enum RadarProduct: String, CaseIterable, Identifiable {
                     minimumDBZ: noiseFilter.minimumDBZ
                 )
             }
+            if self == .compositeReflectivity {
+                // Pre-rendered IEM CDN tiles, not WMS: opengeo's GetMap
+                // renders each tile on demand (seconds per tile) — this
+                // cache is how dedicated radar apps stay smooth. It also
+                // matches the timeline loop frames exactly, so scrubbing
+                // never changes the look of the imagery.
+                return RadarLayerConfiguration(
+                    serviceURL: "",
+                    layerName: "nexrad-n0q-900913",
+                    sourceLabel: "NOAA NEXRAD",
+                    tileURLTemplate: "https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913/{z}/{x}/{y}.png"
+                )
+            }
             let domain = RadarDomain.domain(for: coordinate)
-            let product = self == .compositeReflectivity ? "cref_qcd" : "bref_qcd"
             return RadarLayerConfiguration(
-                serviceURL: "https://opengeo.ncep.noaa.gov/geoserver/\(domain.pathComponent)/\(domain.pathComponent)_\(product)/ows",
-                layerName: "\(domain.pathComponent)_\(product)",
+                serviceURL: "https://opengeo.ncep.noaa.gov/geoserver/\(domain.pathComponent)/\(domain.pathComponent)_bref_qcd/ows",
+                layerName: "\(domain.pathComponent)_bref_qcd",
                 sourceLabel: domain.shortSourceLabel
             )
         case .echoTops:
@@ -122,6 +141,39 @@ enum RadarProduct: String, CaseIterable, Identifiable {
             )
         }
     }
+}
+
+/// Optional overlay layers drawn on top of the active radar product.
+enum RadarOverlayLayer: String, CaseIterable, Identifiable {
+    case lightning
+    case alerts
+    case stormTracks
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .lightning: return "Lightning"
+        case .alerts: return "Alerts"
+        case .stormTracks: return "Tracks"
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .lightning: return "bolt.fill"
+        case .alerts: return "exclamationmark.triangle.fill"
+        case .stormTracks: return "arrow.up.right"
+        }
+    }
+
+    /// NOAA nowCOAST GOES GLM emulated lightning strike density, served
+    /// through the same WMS pattern as the radar layers.
+    static let lightningConfiguration = RadarLayerConfiguration(
+        serviceURL: "https://nowcoast.noaa.gov/geoserver/observations/lightning_detection/ows",
+        layerName: "ldn_lightning_strike_density",
+        sourceLabel: "GOES GLM"
+    )
 }
 
 /// RadarScope-style clutter filter. Pixels whose palette color maps to

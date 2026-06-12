@@ -7,7 +7,35 @@
 		<key>NWS Weather App.xcscheme_^#shared#^_</key>
 		<dict>
 			<key>orderHint</key>
+			<integer>1</integer>
+		</dict>
+		<key>WeaherWidgetExtension.xcscheme_^#shared#^_</key>
+		<dict>
+			<key>orderHint</key>
+			<integer>2</integer>
+		</dict>
+		<key>WeatherWidgetExtension.xcscheme_^#shared#^_</key>
+		<dict>
+			<key>orderHint</key>
 			<integer>0</integer>
+		</dict>
+	</dict>
+	<key>SuppressBuildableAutocreation</key>
+	<dict>
+		<key>F4C9FAD32F69139B00F1A8E8</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>F4C9FAE02F69139C00F1A8E8</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>F4C9FAEA2F69139C00F1A8E8</key>
+		<dict>
+			<key>primary</key>
+			<true/>
 		</dict>
 	</dict>
 </dict>

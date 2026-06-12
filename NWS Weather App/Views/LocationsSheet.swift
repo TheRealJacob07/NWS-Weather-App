@@ -15,6 +15,44 @@ struct LocationsSheet: View {
     var body: some View {
         NavigationStack {
             List {
+                if !searchService.suggestions.isEmpty && !searchText.isEmpty {
+                    Section {
+                        ForEach(searchService.suggestions) { suggestion in
+                            Button {
+                                Task { await add(suggestion) }
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "magnifyingglass")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundStyle(.cyan.opacity(0.8))
+                                        .frame(width: 26)
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(suggestion.title)
+                                            .font(.body.weight(.medium))
+                                            .foregroundStyle(.white)
+                                        if !suggestion.subtitle.isEmpty {
+                                            Text(suggestion.subtitle)
+                                                .font(.caption)
+                                                .foregroundStyle(.white.opacity(0.55))
+                                        }
+                                    }
+
+                                    Spacer()
+
+                                    Image(systemName: "plus.circle")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.white.opacity(0.4))
+                                }
+                                .padding(.vertical, 2)
+                            }
+                            .listRowBackground(rowBackground)
+                        }
+                    } header: {
+                        Text("Suggestions")
+                    }
+                }
+
                 Section {
                     Button {
                         onUseDeviceLocation()
@@ -70,6 +108,9 @@ struct LocationsSheet: View {
             .navigationTitle("Weather")
             .navigationBarTitleDisplayMode(.large)
             .searchable(text: $searchText, prompt: "Search for a city or town")
+            .onChange(of: searchText) { _, newValue in
+                searchService.updateQuery(newValue)
+            }
             .onSubmit(of: .search) {
                 Task { await searchAndAddLocation() }
             }
@@ -127,22 +168,39 @@ struct LocationsSheet: View {
         }
     }
 
+    private func add(_ suggestion: LocationSearchService.Suggestion) async {
+        if let result = await searchService.resolve(suggestion) {
+            save(result)
+        }
+    }
+
     private func searchAndAddLocation() async {
+        // Prefer the top autocomplete suggestion on keyboard submit.
+        if let first = searchService.suggestions.first {
+            await add(first)
+            return
+        }
+
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return }
 
         if let result = await searchService.search(query: query) {
-            if let existing = savedLocations.first(where: {
-                abs($0.latitude - result.latitude) < 0.0001
-                && abs($0.longitude - result.longitude) < 0.0001
-            }) {
-                activeSavedLocationID = existing.id
-            } else {
-                savedLocations.insert(result, at: 0)
-                activeSavedLocationID = result.id
-            }
-            searchText = ""
-            dismiss()
+            save(result)
         }
+    }
+
+    private func save(_ result: SavedLocation) {
+        if let existing = savedLocations.first(where: {
+            abs($0.latitude - result.latitude) < 0.0001
+            && abs($0.longitude - result.longitude) < 0.0001
+        }) {
+            activeSavedLocationID = existing.id
+        } else {
+            savedLocations.insert(result, at: 0)
+            activeSavedLocationID = result.id
+        }
+        searchText = ""
+        searchService.updateQuery("")
+        dismiss()
     }
 }

@@ -23,10 +23,25 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		F4C9FB092F69140000F1A8E8 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		F4C9FAD42F69139B00F1A8E8 /* NWS Weather App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "NWS Weather App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F4C9FAE12F69139C00F1A8E8 /* NWS Weather AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "NWS Weather AppTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F4C9FAEB2F69139C00F1A8E8 /* NWS Weather AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "NWS Weather AppUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		F4CA3F862FD9D3040003EC54 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		F4CA3F882FD9D3040003EC54 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -78,6 +93,7 @@
 				F4C9FAD62F69139B00F1A8E8 /* NWS Weather App */,
 				F4C9FAE42F69139C00F1A8E8 /* NWS Weather AppTests */,
 				F4C9FAEE2F69139C00F1A8E8 /* NWS Weather AppUITests */,
+				F4CA3F852FD9D3040003EC54 /* Frameworks */,
 				F4C9FAD52F69139B00F1A8E8 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -92,6 +108,15 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		F4CA3F852FD9D3040003EC54 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				F4CA3F862FD9D3040003EC54 /* WidgetKit.framework */,
+				F4CA3F882FD9D3040003EC54 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -102,6 +127,7 @@
 				F4C9FAD02F69139B00F1A8E8 /* Sources */,
 				F4C9FAD12F69139B00F1A8E8 /* Frameworks */,
 				F4C9FAD22F69139B00F1A8E8 /* Resources */,
+				F4C9FB092F69140000F1A8E8 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
@@ -170,7 +196,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2630;
+				LastSwiftUpdateCheck = 2700;
 				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					F4C9FAD32F69139B00F1A8E8 = {
@@ -322,7 +348,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -381,7 +407,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -397,6 +423,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "NWS Weather App/NWS_Weather_App.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U3ZR3ZV6N4;
@@ -430,6 +457,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "NWS Weather App/NWS_Weather_App.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U3ZR3ZV6N4;

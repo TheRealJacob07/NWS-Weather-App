@@ -8,9 +8,20 @@ struct RadarMapView: UIViewRepresentable {
     let selectedRadarSiteID: String?
     let showsRadarSites: Bool
     let stormTracks: [StormTrack]
+    let alertPolygons: [AlertPolygon]
+    let stormMarkers: [StormMarker]
+    let showsLightning: Bool
     let onSelectRadarSite: (RadarSite) -> Void
     let configuration: RadarLayerConfiguration?
     let spanDelta: Double
+    /// When true, the historical loop frame replaces the live WMS product.
+    let timelineActive: Bool
+    let timelineMinutesAgo: Int
+    /// Crossfade between loop frames (used during playback).
+    let timelineAnimatesTransitions: Bool
+    let onMapRegionChanged: ((MKMapRect, Int) -> Void)?
+    let onMapTap: ((CLLocationCoordinate2D) -> Void)?
+    let onSelectStormMarker: ((StormMarker) -> Void)?
 
     func makeCoordinator() -> Coordinator {
         Coordinator(onSelectRadarSite: onSelectRadarSite)
@@ -24,22 +35,63 @@ struct RadarMapView: UIViewRepresentable {
         mapView.showsUserLocation = true
         mapView.pointOfInterestFilter = .excludingAll
         mapView.isRotateEnabled = false
+        mapView.isPitchEnabled = false
 
+        // Radar data is useless past ~city scale, and street-level zoom
+        // multiplies tile requests for nothing. Capping the camera keeps
+        // pans/zooms inside the range where tiles exist and load fast.
+        mapView.cameraZoomRange = MKMapView.CameraZoomRange(
+            minCenterCoordinateDistance: 25_000,
+            maxCenterCoordinateDistance: 14_000_000
+        )
+
+        let tap = UITapGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handleMapTap(_:))
+        )
+        tap.delegate = context.coordinator
+        mapView.addGestureRecognizer(tap)
+
+        context.coordinator.onMapRegionChanged = onMapRegionChanged
+        context.coordinator.onMapTap = onMapTap
+        context.coordinator.onSelectStormMarker = onSelectStormMarker
         updateOverlay(on: mapView, coordinator: context.coordinator)
+        updateLightningOverlay(on: mapView, coordinator: context.coordinator)
+        updateTimelineOverlay(on: mapView, coordinator: context.coordinator)
+        updateAlertPolygonOverlays(on: mapView, coordinator: context.coordinator)
         updateStormTrackOverlays(on: mapView, coordinator: context.coordinator)
+        updateStormMarkerAnnotations(on: mapView, coordinator: context.coordinator)
         updateRadarSiteAnnotations(on: mapView, coordinator: context.coordinator)
         setVisibleRegion(on: mapView, coordinator: context.coordinator, animated: false)
         return mapView
     }
 
     func updateUIView(_ mapView: MKMapView, context: Context) {
+        context.coordinator.onMapRegionChanged = onMapRegionChanged
+        context.coordinator.onMapTap = onMapTap
+        context.coordinator.onSelectStormMarker = onSelectStormMarker
         updateOverlay(on: mapView, coordinator: context.coordinator)
+        updateLightningOverlay(on: mapView, coordinator: context.coordinator)
+        updateTimelineOverlay(on: mapView, coordinator: context.coordinator)
+        updateAlertPolygonOverlays(on: mapView, coordinator: context.coordinator)
         updateStormTrackOverlays(on: mapView, coordinator: context.coordinator)
+        updateStormMarkerAnnotations(on: mapView, coordinator: context.coordinator)
         updateRadarSiteAnnotations(on: mapView, coordinator: context.coordinator)
         setVisibleRegion(on: mapView, coordinator: context.coordinator, animated: true)
     }
 
+    // MARK: - Static radar overlay
+
     private func updateOverlay(on mapView: MKMapView, coordinator: Coordinator) {
+        if timelineActive {
+            if let radarOverlay = coordinator.radarOverlay {
+                mapView.removeOverlay(radarOverlay)
+                coordinator.radarOverlay = nil
+                coordinator.currentConfiguration = nil
+            }
+            return
+        }
+
         guard coordinator.currentConfiguration != configuration else { return }
 
         if let radarOverlay = coordinator.radarOverlay {
@@ -57,23 +109,183 @@ struct RadarMapView: UIViewRepresentable {
         coordinator.currentConfiguration = configuration
     }
 
+    // MARK: - Lightning overlay
+
+    private func updateLightningOverlay(on mapView: MKMapView, coordinator: Coordinator) {
+        if showsLightning {
+            guard coordinator.lightningOverlay == nil else { return }
+            let overlay = NWSRadarTileOverlay(configuration: RadarOverlayLayer.lightningConfiguration)
+            overlay.canReplaceMapContent = false
+            mapView.addOverlay(overlay, level: .aboveLabels)
+            coordinator.lightningOverlay = overlay
+        } else if let overlay = coordinator.lightningOverlay {
+            mapView.removeOverlay(overlay)
+            coordinator.lightningOverlay = nil
+        }
+    }
+
+    // MARK: - Alert polygon overlays
+
+    /// One MKMultiPolygon per severity (≤5 renderers total, instead of one
+    /// renderer per alert), restricted to geometry near the visible map —
+    /// off-screen alerts cost nothing.
+    private func updateAlertPolygonOverlays(on mapView: MKMapView, coordinator: Coordinator) {
+        let visible = Self.paddedVisibleRect(of: mapView)
+        let onScreen = alertPolygons.filter { Self.boundingRect(of: $0.coordinates).intersects(visible) }
+
+        let key = onScreen.map(\.id).joined(separator: "|")
+        guard coordinator.alertPolygonKey != key else { return }
+        coordinator.alertPolygonKey = key
+
+        if !coordinator.alertPolygonOverlays.isEmpty {
+            mapView.removeOverlays(coordinator.alertPolygonOverlays)
+            coordinator.alertPolygonOverlays.removeAll()
+        }
+
+        let grouped = Dictionary(grouping: onScreen, by: \.severityKey)
+        let overlays = grouped.map { severityKey, alerts in
+            let polygons = alerts.map { MKPolygon(coordinates: $0.coordinates, count: $0.coordinates.count) }
+            let multi = MKMultiPolygon(polygons)
+            multi.title = severityKey
+            return multi
+        }
+        mapView.addOverlays(overlays, level: .aboveLabels)
+        coordinator.alertPolygonOverlays = overlays
+    }
+
+    /// Visible map rect padded 50% so slight pans don't trigger rebuilds.
+    nonisolated static func paddedVisibleRect(of mapView: MKMapView) -> MKMapRect {
+        mapView.visibleMapRect.insetBy(
+            dx: -mapView.visibleMapRect.width * 0.5,
+            dy: -mapView.visibleMapRect.height * 0.5
+        )
+    }
+
+    nonisolated static func boundingRect(of coordinates: [CLLocationCoordinate2D]) -> MKMapRect {
+        var rect = MKMapRect.null
+        for coordinate in coordinates {
+            let point = MKMapPoint(coordinate)
+            rect = rect.union(MKMapRect(x: point.x, y: point.y, width: 0, height: 0))
+        }
+        return rect
+    }
+
+    // MARK: - Storm markers
+
+    private func updateStormMarkerAnnotations(on mapView: MKMapView, coordinator: Coordinator) {
+        let ids = stormMarkers.map(\.id)
+        guard coordinator.stormMarkerIDs != ids else { return }
+
+        if !coordinator.stormMarkerAnnotations.isEmpty {
+            mapView.removeAnnotations(coordinator.stormMarkerAnnotations)
+            coordinator.stormMarkerAnnotations.removeAll()
+        }
+
+        let annotations = stormMarkers.map { StormMarkerAnnotation(marker: $0) }
+        mapView.addAnnotations(annotations)
+        coordinator.stormMarkerAnnotations = annotations
+        coordinator.stormMarkerIDs = ids
+    }
+
+    // MARK: - Timeline (historical loop) overlay
+
+    /// Double-buffered loop frames: the next frame loads into the hidden
+    /// back overlay, then the two renderers crossfade — no flicker between
+    /// frames, RadarScope-style. Falls back to an instant swap while
+    /// scrubbing (crossfades would lag behind the finger).
+    private func updateTimelineOverlay(on mapView: MKMapView, coordinator: Coordinator) {
+        guard timelineActive else {
+            coordinator.fadeTask?.cancel()
+            coordinator.fadeTask = nil
+            for overlay in coordinator.timelineOverlays {
+                mapView.removeOverlay(overlay)
+            }
+            coordinator.timelineOverlays.removeAll()
+            coordinator.timelineRenderers.removeAll()
+            coordinator.timelineFrontIndex = 0
+            coordinator.timelineMinutesAgo = -1
+            return
+        }
+
+        if coordinator.timelineOverlays.isEmpty {
+            let front = RidgeTimelineTileOverlay()
+            front.minutesAgo = timelineMinutesAgo
+            let back = RidgeTimelineTileOverlay()
+            back.minutesAgo = timelineMinutesAgo
+            mapView.addOverlay(front, level: .aboveLabels)
+            mapView.addOverlay(back, level: .aboveLabels)
+            coordinator.timelineOverlays = [front, back]
+            coordinator.timelineFrontIndex = 0
+            coordinator.timelineMinutesAgo = timelineMinutesAgo
+            return
+        }
+
+        guard timelineMinutesAgo != coordinator.timelineMinutesAgo else { return }
+        coordinator.timelineMinutesAgo = timelineMinutesAgo
+
+        let backIndex = 1 - coordinator.timelineFrontIndex
+        let front = coordinator.timelineOverlays[coordinator.timelineFrontIndex]
+        let back = coordinator.timelineOverlays[backIndex]
+
+        guard let frontRenderer = coordinator.timelineRenderers[ObjectIdentifier(front)],
+              let backRenderer = coordinator.timelineRenderers[ObjectIdentifier(back)] else {
+            // Renderers not realized yet (first frames) — update in place.
+            front.minutesAgo = timelineMinutesAgo
+            coordinator.timelineRenderers[ObjectIdentifier(front)]?.reloadData()
+            return
+        }
+
+        back.minutesAgo = timelineMinutesAgo
+        backRenderer.reloadData()
+        coordinator.timelineFrontIndex = backIndex
+
+        coordinator.fadeTask?.cancel()
+        if timelineAnimatesTransitions {
+            coordinator.fadeTask = Task { @MainActor in
+                // Give cached tiles one beat to draw, then crossfade.
+                try? await Task.sleep(nanoseconds: 60_000_000)
+                for step in 1...4 {
+                    guard !Task.isCancelled else { break }
+                    let alpha = CGFloat(step) / 4.0
+                    backRenderer.alpha = alpha
+                    frontRenderer.alpha = 1.0 - alpha
+                    try? await Task.sleep(nanoseconds: 35_000_000)
+                }
+                backRenderer.alpha = 1.0
+                frontRenderer.alpha = 0.0
+            }
+        } else {
+            backRenderer.alpha = 1.0
+            frontRenderer.alpha = 0.0
+        }
+    }
+
+    // MARK: - Storm track overlays
+
+    /// One MKMultiPolyline per track style (2 renderers max), viewport
+    /// filtered like the alert polygons.
     private func updateStormTrackOverlays(on mapView: MKMapView, coordinator: Coordinator) {
-        let trackIDs = stormTracks.map(\.id)
-        guard coordinator.stormTrackIDs != trackIDs else { return }
+        let visible = Self.paddedVisibleRect(of: mapView)
+        let onScreen = stormTracks.filter { Self.boundingRect(of: $0.coordinates).intersects(visible) }
+
+        let key = onScreen.map { $0.id.uuidString }.joined(separator: "|")
+        guard coordinator.stormTrackKey != key else { return }
+        coordinator.stormTrackKey = key
 
         if !coordinator.stormTrackOverlays.isEmpty {
             mapView.removeOverlays(coordinator.stormTrackOverlays)
             coordinator.stormTrackOverlays.removeAll()
         }
 
-        let overlays = stormTracks.map { track in
-            let polyline = MKPolyline(coordinates: track.coordinates, count: track.coordinates.count)
-            polyline.title = track.style.rawValue
-            return polyline
+        let grouped = Dictionary(grouping: onScreen, by: \.style)
+        let overlays = grouped.map { style, tracks in
+            let polylines = tracks.map { MKPolyline(coordinates: $0.coordinates, count: $0.coordinates.count) }
+            let multi = MKMultiPolyline(polylines)
+            multi.title = style.rawValue
+            return multi
         }
         mapView.addOverlays(overlays, level: .aboveLabels)
         coordinator.stormTrackOverlays = overlays
-        coordinator.stormTrackIDs = trackIDs
     }
 
     private func updateRadarSiteAnnotations(on mapView: MKMapView, coordinator: Coordinator) {
@@ -137,8 +349,9 @@ struct RadarMapView: UIViewRepresentable {
         }
     }
 
-    final class Coordinator: NSObject, MKMapViewDelegate {
+    final class Coordinator: NSObject, MKMapViewDelegate, UIGestureRecognizerDelegate {
         let onSelectRadarSite: (RadarSite) -> Void
+        var onMapRegionChanged: ((MKMapRect, Int) -> Void)?
         var currentConfiguration: RadarLayerConfiguration?
         fileprivate var radarOverlay: NWSRadarTileOverlay?
         var lastCoordinate: CLLocationCoordinate2D?
@@ -146,21 +359,91 @@ struct RadarMapView: UIViewRepresentable {
         fileprivate var radarSiteAnnotations: [RadarSiteAnnotation] = []
         var radarSiteIDs: [String] = []
         var selectedRadarSiteID: String?
-        var stormTrackOverlays: [MKPolyline] = []
-        var stormTrackIDs: [UUID] = []
+        var stormTrackOverlays: [MKMultiPolyline] = []
+        var stormTrackKey = ""
+        fileprivate var lightningOverlay: NWSRadarTileOverlay?
+        var alertPolygonOverlays: [MKMultiPolygon] = []
+        var alertPolygonKey = ""
+        fileprivate var stormMarkerAnnotations: [StormMarkerAnnotation] = []
+        var stormMarkerIDs: [String] = []
+        fileprivate var timelineOverlays: [RidgeTimelineTileOverlay] = []
+        var timelineRenderers: [ObjectIdentifier: MKTileOverlayRenderer] = [:]
+        var timelineFrontIndex = 0
+        var timelineMinutesAgo: Int = -1
+        var fadeTask: Task<Void, Never>?
+        var onMapTap: ((CLLocationCoordinate2D) -> Void)?
+        var onSelectStormMarker: ((StormMarker) -> Void)?
 
         init(onSelectRadarSite: @escaping (RadarSite) -> Void) {
             self.onSelectRadarSite = onSelectRadarSite
         }
 
+        // Run alongside MapKit's own gestures so pan/zoom keep working.
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+        ) -> Bool {
+            true
+        }
+
+        @objc func handleMapTap(_ gesture: UITapGestureRecognizer) {
+            guard let mapView = gesture.view as? MKMapView else { return }
+            let point = gesture.location(in: mapView)
+
+            // Taps on annotation views are handled by didSelect.
+            if let hit = mapView.hitTest(point, with: nil),
+               sequence(first: hit, next: { $0.superview }).contains(where: { $0 is MKAnnotationView }) {
+                return
+            }
+
+            let coordinate = mapView.convert(point, toCoordinateFrom: mapView)
+            // Defer so the callback never mutates SwiftUI state mid-gesture/
+            // view-update pass.
+            DispatchQueue.main.async { [onMapTap] in
+                onMapTap?(coordinate)
+            }
+        }
+
+        func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
+            guard let callback = onMapRegionChanged else { return }
+            let zoom = Self.zoomLevel(for: mapView)
+            callback(mapView.visibleMapRect, zoom)
+        }
+
+        private static func zoomLevel(for mapView: MKMapView) -> Int {
+            guard mapView.bounds.width > 0 else { return 5 }
+            let scale = Double(mapView.bounds.width) / mapView.visibleMapRect.size.width
+            let zoom = log2(scale * MKMapSize.world.width / 256.0)
+            return max(2, min(Int(zoom), 14))
+        }
+
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
+            if let tileOverlay = overlay as? RidgeTimelineTileOverlay {
+                let renderer = MKTileOverlayRenderer(tileOverlay: tileOverlay)
+                // Front overlay starts visible, back starts hidden.
+                let isFront = timelineOverlays.indices.contains(timelineFrontIndex)
+                    && timelineOverlays[timelineFrontIndex] === tileOverlay
+                renderer.alpha = isFront ? 1.0 : 0.0
+                timelineRenderers[ObjectIdentifier(tileOverlay)] = renderer
+                return renderer
+            }
+
             if let tileOverlay = overlay as? MKTileOverlay {
                 return MKTileOverlayRenderer(tileOverlay: tileOverlay)
             }
 
-            if let polyline = overlay as? MKPolyline {
-                let renderer = MKPolylineRenderer(polyline: polyline)
-                let isWarning = polyline.title == StormTrackStyle.warningArea.rawValue
+            if let multiPolygon = overlay as? MKMultiPolygon {
+                let renderer = MKMultiPolygonRenderer(multiPolygon: multiPolygon)
+                let color = Self.severityColor(for: multiPolygon.title)
+                renderer.fillColor = color.withAlphaComponent(0.12)
+                renderer.strokeColor = color.withAlphaComponent(0.85)
+                renderer.lineWidth = 1.5
+                return renderer
+            }
+
+            if let multiPolyline = overlay as? MKMultiPolyline {
+                let renderer = MKMultiPolylineRenderer(multiPolyline: multiPolyline)
+                let isWarning = multiPolyline.title == StormTrackStyle.warningArea.rawValue
                 renderer.lineWidth = isWarning ? 3 : 4
                 renderer.strokeColor = isWarning
                     ? UIColor.systemOrange.withAlphaComponent(0.85)
@@ -172,8 +455,34 @@ struct RadarMapView: UIViewRepresentable {
             return MKOverlayRenderer(overlay: overlay)
         }
 
+        static func severityColor(for severityKey: String?) -> UIColor {
+            switch severityKey {
+            case "extreme": return UIColor.systemPurple
+            case "severe": return UIColor.systemRed
+            case "moderate": return UIColor.systemOrange
+            case "minor": return UIColor.systemYellow
+            default: return UIColor.systemGray
+            }
+        }
+
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
             if annotation is MKUserLocation { return nil }
+
+            if let marker = annotation as? StormMarkerAnnotation {
+                let identifier = "StormMarker"
+                let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as? MKMarkerAnnotationView
+                    ?? MKMarkerAnnotationView(annotation: marker, reuseIdentifier: identifier)
+                view.annotation = marker
+                view.canShowCallout = false // selection opens the glass inspector instead
+                view.markerTintColor = marker.isTornado ? .systemRed : .systemOrange
+                view.glyphImage = UIImage(systemName: marker.isTornado ? "tornado" : "cloud.bolt.fill")
+                view.glyphTintColor = .white
+                view.titleVisibility = .hidden
+                view.subtitleVisibility = .hidden
+                view.displayPriority = .required
+                view.clusteringIdentifier = nil
+                return view
+            }
 
             if let cluster = annotation as? MKClusterAnnotation {
                 let identifier = "RadarSiteCluster"
@@ -214,6 +523,15 @@ struct RadarMapView: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, didSelect annotation: MKAnnotation) {
+            if let stormMarker = annotation as? StormMarkerAnnotation {
+                mapView.deselectAnnotation(stormMarker, animated: false)
+                let marker = stormMarker.marker
+                DispatchQueue.main.async { [onSelectStormMarker] in
+                    onSelectStormMarker?(marker)
+                }
+                return
+            }
+
             if let cluster = annotation as? MKClusterAnnotation {
                 // Tapping a cluster zooms in to reveal its member sites.
                 mapView.deselectAnnotation(cluster, animated: false)
@@ -241,6 +559,18 @@ struct RadarMapView: UIViewRepresentable {
     }
 }
 
+fileprivate final class StormMarkerAnnotation: NSObject, MKAnnotation {
+    let marker: StormMarker
+    var coordinate: CLLocationCoordinate2D { marker.coordinate }
+    var title: String? { marker.event }
+    var subtitle: String? { marker.motionText }
+    var isTornado: Bool { marker.event.lowercased().contains("tornado") }
+
+    init(marker: StormMarker) {
+        self.marker = marker
+    }
+}
+
 fileprivate final class RadarSiteAnnotation: NSObject, MKAnnotation {
     let site: RadarSite
     var coordinate: CLLocationCoordinate2D { site.coordinate }
@@ -263,37 +593,31 @@ fileprivate nonisolated final class NWSRadarTileOverlay: MKTileOverlay {
 
     private let minimumDBZ: Double?
 
-    /// NOAA RIDGE2 reflectivity color curve, sampled from the official
-    /// GetLegendGraphic for the sr_bref product. 40 stops spanning
-    /// -30 dBZ (index 0) to +75 dBZ in 2.625 dBZ steps.
-    private static let reflectivityPalette: [(UInt8, UInt8, UInt8)] = [
-        (143, 133, 116), (147, 140, 94), (157, 153, 95), (171, 169, 118),
-        (186, 186, 143), (201, 203, 167), (201, 204, 180), (185, 190, 180),
-        (168, 175, 180), (155, 162, 180), (135, 145, 177), (112, 127, 171),
-        (90, 111, 165), (75, 100, 161), (74, 114, 171), (87, 152, 194),
-        (90, 183, 195), (85, 203, 173), (64, 214, 125), (32, 214, 57),
-        (13, 193, 18), (11, 156, 16), (10, 125, 13), (9, 105, 10),
-        (73, 128, 6), (191, 191, 2), (249, 214, 12), (239, 191, 34),
-        (239, 178, 34), (249, 177, 11), (231, 4, 4), (186, 12, 12),
-        (165, 11, 12), (173, 4, 4), (248, 219, 254), (234, 152, 253),
-        (234, 116, 252), (247, 116, 254), (150, 0, 241), (110, 0, 221)
-    ]
-
     init(configuration: RadarLayerConfiguration) {
         self.configuration = configuration
         self.minimumDBZ = configuration.minimumDBZ
         super.init(urlTemplate: nil)
     }
 
-    override func loadTile(at path: MKTileOverlayPath, result: @escaping (Data?, Error?) -> Void) {
+    override func loadTile(at path: MKTileOverlayPath, result: @escaping @Sendable (Data?, Error?) -> Void) {
         guard let minimumDBZ else {
-            super.loadTile(at: path, result: result)
+            // Unfiltered tiles still go through the shared cached session
+            // (instead of MKTileOverlay's default loader) so panning back
+            // over an area redraws from cache instead of re-fetching WMS.
+            let request = URLRequest(url: url(forTilePath: path))
+            NetworkSessions.tiles.dataTask(with: request) { data, response, error in
+                if let data,
+                   let http = response as? HTTPURLResponse, 200..<300 ~= http.statusCode {
+                    result(data, nil)
+                } else {
+                    result(nil, error)
+                }
+            }.resume()
             return
         }
 
-        var request = URLRequest(url: url(forTilePath: path))
-        request.setValue("NWS Weather App (jacob@example.com)", forHTTPHeaderField: "User-Agent")
-        URLSession.shared.dataTask(with: request) { data, _, error in
+        let request = URLRequest(url: url(forTilePath: path))
+        NetworkSessions.tiles.dataTask(with: request) { data, _, error in
             guard let data, error == nil else {
                 result(nil, error)
                 return
@@ -327,26 +651,12 @@ fileprivate nonisolated final class NWSRadarTileOverlay: MKTileOverlay {
     private static func makeKeepLUT(minimumDBZ: Double) -> [Bool] {
         var lut = [Bool](repeating: true, count: 32768)
         for r5 in 0..<32 {
-            let r = Double(r5 << 3 | r5 >> 2)
+            let r = r5 << 3 | r5 >> 2
             for g5 in 0..<32 {
-                let g = Double(g5 << 3 | g5 >> 2)
+                let g = g5 << 3 | g5 >> 2
                 for b5 in 0..<32 {
-                    let b = Double(b5 << 3 | b5 >> 2)
-
-                    var bestIndex = 0
-                    var bestDistance = Double.greatestFiniteMagnitude
-                    for (index, color) in reflectivityPalette.enumerated() {
-                        let dr = r - Double(color.0)
-                        let dg = g - Double(color.1)
-                        let db = b - Double(color.2)
-                        let distance = dr * dr + dg * dg + db * db
-                        if distance < bestDistance {
-                            bestDistance = distance
-                            bestIndex = index
-                        }
-                    }
-
-                    let dbz = -30.0 + Double(bestIndex) * 2.625
+                    let b = b5 << 3 | b5 >> 2
+                    let dbz = ReflectivityScale.dbz(red: r, green: g, blue: b)
                     lut[r5 << 10 | g5 << 5 | b5] = dbz >= minimumDBZ
                 }
             }
@@ -412,6 +722,15 @@ fileprivate nonisolated final class NWSRadarTileOverlay: MKTileOverlay {
     }
 
     override func url(forTilePath path: MKTileOverlayPath) -> URL {
+        // Pre-rendered CDN tiles (fast path).
+        if let template = configuration.tileURLTemplate {
+            let urlString = template
+                .replacingOccurrences(of: "{z}", with: String(path.z))
+                .replacingOccurrences(of: "{x}", with: String(path.x))
+                .replacingOccurrences(of: "{y}", with: String(path.y))
+            if let url = URL(string: urlString) { return url }
+        }
+
         let zoomScale = pow(2.0, Double(path.z))
         let minX = Double(path.x) / zoomScale * worldWidth
         let maxX = Double(path.x + 1) / zoomScale * worldWidth
@@ -440,5 +759,51 @@ fileprivate nonisolated final class NWSRadarTileOverlay: MKTileOverlay {
         ]
 
         return components.url!
+    }
+}
+
+/// Serves IEM archived composite frames for the radar timeline. Tiles are
+/// fetched on demand at whatever zoom MapKit asks for (no preload step, so
+/// the map never goes blank). RadarTileCache makes frame changes instant
+/// after the first fetch — without it every loop pass re-hits the network.
+/// `nonisolated` is required: MapKit calls `loadTile` on background queues.
+nonisolated final class RidgeTimelineTileOverlay: MKTileOverlay {
+    private let lock = NSLock()
+    private var _minutesAgo = 0
+
+    var minutesAgo: Int {
+        get { lock.lock(); defer { lock.unlock() }; return _minutesAgo }
+        set { lock.lock(); _minutesAgo = newValue; lock.unlock() }
+    }
+
+    init() {
+        super.init(urlTemplate: nil)
+        canReplaceMapContent = false
+        tileSize = CGSize(width: 256, height: 256)
+    }
+
+    override func loadTile(at path: MKTileOverlayPath, result: @escaping @Sendable (Data?, Error?) -> Void) {
+        let offset = minutesAgo
+        let cache = RadarTileCache.shared
+
+        if let cached = cache.data(minutesAgo: offset, z: path.z, x: path.x, y: path.y) {
+            result(cached, nil)
+            return
+        }
+
+        guard let url = RadarTileURL.make(minutesAgo: offset, z: path.z, x: path.x, y: path.y) else {
+            result(nil, nil)
+            return
+        }
+
+        NetworkSessions.tiles.dataTask(with: URLRequest(url: url)) { data, response, error in
+            if let data,
+               let http = response as? HTTPURLResponse, 200..<300 ~= http.statusCode {
+                cache.store(data, minutesAgo: offset, z: path.z, x: path.x, y: path.y)
+                result(data, nil)
+            } else {
+                result(nil, error)
+            }
+        }.resume()
     }
 }

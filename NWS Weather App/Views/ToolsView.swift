@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// NWS resources and app status, presented as a sheet from the bottom bar menu.
+/// NOAA forecast centers' products rendered natively, plus app status —
+/// presented as a sheet from the bottom bar menu.
 struct ToolsView: View {
     let statusMessage: String
     let activeLocationStatus: String
@@ -11,34 +12,45 @@ struct ToolsView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 14) {
-                    SectionCard(title: "Status") {
-                        VStack(spacing: 12) {
-                            InsightRow(label: "Weather", value: statusMessage)
-                            InsightRow(label: "Location", value: activeLocationStatus)
-                            InsightRow(label: "Saved Places", value: "\(savedLocationCount)")
-                        }
-                    }
+            ZStack {
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.05, green: 0.06, blue: 0.11),
+                        Color(red: 0.03, green: 0.04, blue: 0.08)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
 
-                    SectionCard(title: "NOAA Resources", subtitle: "Official forecast and analysis products") {
-                        VStack(spacing: 12) {
-                            ForEach(NOAAResource.allCases) { resource in
-                                Button {
-                                    selectedMapResource = resource
-                                } label: {
-                                    NOAAResourceRow(resource: resource)
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 14) {
+                        SectionCard(title: "Forecast Centers", subtitle: "Official NOAA analysis — rendered right here, no browser") {
+                            VStack(spacing: 12) {
+                                ForEach(NOAAResource.allCases) { resource in
+                                    Button {
+                                        selectedMapResource = resource
+                                    } label: {
+                                        NOAAResourceRow(resource: resource)
+                                    }
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
+                            }
+                        }
+
+                        SectionCard(title: "Status") {
+                            VStack(spacing: 12) {
+                                InsightRow(label: "Weather", value: statusMessage)
+                                InsightRow(label: "Location", value: activeLocationStatus)
+                                InsightRow(label: "Saved Places", value: "\(savedLocationCount)")
                             }
                         }
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
             }
-            .background(Color(red: 0.07, green: 0.08, blue: 0.12))
-            .navigationTitle("NWS Resources")
+            .navigationTitle("NWS Tools")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

@@ -76,9 +76,8 @@ final class RadarSiteService: ObservableObject {
         guard let url = URL(string: "https://api.weather.gov/radar/stations") else { return [:] }
         var request = URLRequest(url: url)
         request.setValue("application/geo+json", forHTTPHeaderField: "Accept")
-        request.setValue("NWS Weather App (jacob@example.com)", forHTTPHeaderField: "User-Agent")
 
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
+        guard let (data, response) = try? await NetworkSessions.api.data(for: request),
               let httpResponse = response as? HTTPURLResponse,
               200..<300 ~= httpResponse.statusCode,
               let stations = try? JSONDecoder().decode(RadarStationsResponse.self, from: data) else {
@@ -110,9 +109,8 @@ final class RadarSiteService: ObservableObject {
 
     private func fetchSites() async throws -> [RadarSite] {
         let url = URL(string: "https://opengeo.ncep.noaa.gov/geoserver/nws/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=nws:radar_sites")!
-        var request = URLRequest(url: url)
-        request.setValue("NWS Weather App (jacob@example.com)", forHTTPHeaderField: "User-Agent")
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let request = URLRequest(url: url)
+        let (data, response) = try await NetworkSessions.api.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse,
               200..<300 ~= httpResponse.statusCode,
               let xml = String(data: data, encoding: .utf8) else {

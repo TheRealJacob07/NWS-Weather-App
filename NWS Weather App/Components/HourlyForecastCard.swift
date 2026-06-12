@@ -8,13 +8,6 @@ struct HourlyForecastCard: View {
     var body: some View {
         WeatherCard(icon: "clock", title: "Hourly Forecast") {
             VStack(alignment: .leading, spacing: 0) {
-                if let summaryText, !summaryText.isEmpty {
-                    Text(summaryText)
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.85))
-                        .padding(.horizontal, 16)
-                        .padding(.top, 12)
-                }
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(alignment: .top, spacing: 0) {

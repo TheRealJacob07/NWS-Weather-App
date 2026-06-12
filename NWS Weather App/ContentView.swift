@@ -5,12 +5,16 @@ internal import Combine
 struct ContentView: View {
     @StateObject private var location = SimpleLocation()
     @StateObject private var weatherService = WeatherService()
+    @StateObject private var intelligence = WeatherIntelligenceService()
+    @StateObject private var airQuality = AirQualityService()
+    @StateObject private var sun = SunService()
     @State private var activeSavedLocationID: UUID?
     @State private var savedLocations: [SavedLocation] = []
     @State private var hasLoadedSavedLocations = false
     @State private var isShowingLocations = false
     @State private var isShowingRadar = false
     @State private var isShowingTools = false
+    @State private var isShowingChat = false
     @State private var selectedAlert: WeatherAlertSummary?
     @AppStorage("saved_locations_data") private var savedLocationsData = ""
 
@@ -38,6 +42,12 @@ struct ContentView: View {
                         .buttonStyle(.plain)
                     }
 
+                    if weatherService.forecast != nil {
+                        AISummaryCard(intelligence: intelligence) {
+                            isShowingChat = true
+                        }
+                    }
+
                     if !weatherService.hourlyPeriods.isEmpty {
                         HourlyForecastCard(
                             periods: weatherService.hourlyPeriods,
@@ -58,6 +68,22 @@ struct ContentView: View {
 
                     if let forecast = weatherService.forecast, !forecast.detailedForecast.isEmpty {
                         detailsCard(for: forecast)
+                    }
+
+                    if let sunSnapshot = sun.snapshot {
+                        UVIndexCard(snapshot: sunSnapshot)
+                        SunExposureCard(snapshot: sunSnapshot)
+                    }
+
+                    if let aqSnapshot = airQuality.snapshot {
+                        AirQualityCard(snapshot: aqSnapshot)
+                    }
+
+                    if !airQuality.pollen.isEmpty {
+                        AllergenCard(
+                            readings: airQuality.pollen,
+                            isEstimated: airQuality.pollenIsEstimated
+                        )
                     }
 
                     footer
@@ -95,6 +121,12 @@ struct ContentView: View {
         .sheet(item: $selectedAlert) { alert in
             AlertDetailSheet(alert: alert)
         }
+        .sheet(isPresented: $isShowingChat) {
+            WeatherChatSheet(
+                intelligence: intelligence,
+                locationName: activeLocationName
+            )
+        }
         .fullScreenCover(isPresented: $isShowingRadar) {
             RadarView(
                 forecast: weatherService.forecast,
@@ -106,6 +138,9 @@ struct ContentView: View {
         .task(id: weatherRequestID) {
             guard let coordinate = activeCoordinate else { return }
             await weatherService.loadWeather(latitude: coordinate.latitude, longitude: coordinate.longitude)
+            async let environmentTask: Void = refreshEnvironment()
+            async let intelligenceTask: Void = refreshIntelligence()
+            _ = await (environmentTask, intelligenceTask)
         }
         .task {
             guard !hasLoadedSavedLocations else { return }
@@ -135,7 +170,10 @@ struct ContentView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
 
-            Text(weatherService.forecast?.temperatureText ?? "--")
+            // Observed station temperature (what NWS calls "current
+            // conditions") — the forecast period temp is today's high/low,
+            // not the temperature right now.
+            Text(currentTemperatureText)
                 .font(.system(size: 100, weight: .thin, design: .rounded))
                 .foregroundStyle(.white)
                 .padding(.leading, 20) // optically center, offsetting the degree sign
@@ -251,6 +289,12 @@ struct ContentView: View {
 
                 Menu {
                     Button {
+                        isShowingChat = true
+                    } label: {
+                        Label("Ask Weather AI", systemImage: "sparkles")
+                    }
+
+                    Button {
                         Task { await refresh() }
                     } label: {
                         Label("Refresh", systemImage: "arrow.clockwise")
@@ -281,6 +325,13 @@ struct ContentView: View {
     }
 
     // MARK: - Computed state
+
+    private var currentTemperatureText: String {
+        if let observed = weatherService.currentObservation?.temperatureValue {
+            return "\(observed)°"
+        }
+        return weatherService.forecast?.temperatureText ?? "--"
+    }
 
     private var activeLocationName: String {
         if let activeSavedLocation { return activeSavedLocation.name }
@@ -327,6 +378,39 @@ struct ContentView: View {
     private func refresh() async {
         guard let coordinate = activeCoordinate else { return }
         await weatherService.loadWeather(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        async let environmentTask: Void = refreshEnvironment()
+        async let intelligenceTask: Void = refreshIntelligence()
+        _ = await (environmentTask, intelligenceTask)
+    }
+
+    private func refreshEnvironment() async {
+        guard let coordinate = activeCoordinate else { return }
+        async let airTask: Void = airQuality.load(
+            coordinate: coordinate,
+            precipChance: weatherService.forecast?.precipChance ?? 0
+        )
+        async let sunTask: Void = sun.load(coordinate: coordinate)
+        _ = await (airTask, sunTask)
+        WidgetSnapshot.save(
+            forecast: weatherService.forecast,
+            observedTemperature: weatherService.currentObservation?.temperatureValue,
+            observation: weatherService.currentObservation,
+            hourly: weatherService.hourlyPeriods,
+            alerts: weatherService.alerts,
+            aqi: airQuality.snapshot?.aqi,
+            uv: sun.snapshot?.uvIndex
+        )
+    }
+
+    private func refreshIntelligence() async {
+        intelligence.updateContext(
+            forecast: weatherService.forecast,
+            observation: weatherService.currentObservation,
+            hourly: weatherService.hourlyPeriods,
+            daily: weatherService.dailyForecasts,
+            alerts: weatherService.alerts
+        )
+        await intelligence.generateSummaryIfNeeded()
     }
 }
 

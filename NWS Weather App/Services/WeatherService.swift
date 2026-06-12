@@ -39,14 +39,30 @@ final class WeatherService: ObservableObject {
         return f
     }()
 
+    /// NWS point metadata is static per grid cell — cache it for the app's
+    /// lifetime so location switches and refreshes skip a network hop.
+    private var pointCache: [String: NWSPointResponse] = [:]
+    private var activeLoadID = UUID()
+
     func loadWeather(latitude: Double, longitude: Double) async {
+        // Coalesce: a newer request invalidates any in-flight one.
+        let loadID = UUID()
+        activeLoadID = loadID
+
         isLoading = true
         statusMessage = "Loading weather from NWS..."
 
         do {
-            let pointResponse: NWSPointResponse = try await fetchJSON(
-                from: "https://api.weather.gov/points/\(latitude),\(longitude)"
-            )
+            let pointKey = String(format: "%.4f,%.4f", latitude, longitude)
+            let pointResponse: NWSPointResponse
+            if let cached = pointCache[pointKey] {
+                pointResponse = cached
+            } else {
+                pointResponse = try await fetchJSON(
+                    from: "https://api.weather.gov/points/\(latitude),\(longitude)"
+                )
+                pointCache[pointKey] = pointResponse
+            }
             let timeZone = pointResponse.properties.timeZone.flatMap { TimeZone(identifier: $0) } ?? .current
 
             // Start all fetches concurrently. Task{} inherits @MainActor so
@@ -68,6 +84,9 @@ final class WeatherService: ObservableObject {
             let stationCollection = try await stationsTask.value
             let alertResponse = await alertsTask.value
 
+            // A newer load superseded this one — drop the stale results.
+            guard activeLoadID == loadID else { return }
+
             guard let period = forecastResponse.properties.periods.first else {
                 clearWeather(status: "No forecast data was returned by NWS.")
                 isLoading = false
@@ -88,6 +107,8 @@ final class WeatherService: ObservableObject {
                 shortForecast: period.shortForecast,
                 detailedForecast: period.detailedForecast ?? "",
                 wind: "\(period.windSpeed) \(period.windDirection)",
+                windSpeedText: period.windSpeed,
+                windDirectionText: period.windDirection,
                 isDaytime: period.isDaytime,
                 precipChance: precipChance(for: period),
                 high: today?.high ?? (period.isDaytime ? period.temperature : nil),
@@ -100,13 +121,14 @@ final class WeatherService: ObservableObject {
                 )
                 let props = latestObservation.properties
                 currentObservation = CurrentObservationSummary(
+                    temperatureValue: fahrenheitValue(forCelsius: props.temperature?.value),
                     feelsLike: feelsLikeText(
                         heatIndex: props.heatIndex?.value,
                         windChill: props.windChill?.value,
                         temperature: props.temperature?.value
                     ),
                     humidity: humidityText(for: props.relativeHumidity.value),
-                    windSpeed: windSpeedText(for: props.windSpeed.value),
+                    windSpeed: windSpeedText(for: props.windSpeed.value, unitCode: props.windSpeed.unitCode),
                     windDirection: windCardinalDirection(for: props.windDirection.value),
                     barometer: barometerText(for: props.barometricPressure.value),
                     dewpoint: dewpointText(for: props.dewpoint.value),
@@ -118,10 +140,13 @@ final class WeatherService: ObservableObject {
             }
             statusMessage = "Weather loaded."
         } catch {
+            guard activeLoadID == loadID else { return }
             clearWeather(status: "Unable to load weather: \(error.localizedDescription)")
         }
 
-        isLoading = false
+        if activeLoadID == loadID {
+            isLoading = false
+        }
     }
 
     // MARK: - Summary builders
@@ -135,56 +160,45 @@ final class WeatherService: ObservableObject {
         statusMessage = status
     }
 
+    /// Groups NWS periods by calendar day in the location's timezone.
+    /// Pairwise day/night walking mislabels overnight loads: at 1 AM the
+    /// list starts with "Overnight" (night-only), so the old code emitted
+    /// "Today" for it AND a separate "Wed" row for the same Wednesday.
     private func makeDailySummaries(from periods: [ForecastPeriod], timeZone: TimeZone) -> [DailyForecastSummary] {
-        var summaries: [DailyForecastSummary] = []
-        var index = 0
+        var calendar = Calendar.current
+        calendar.timeZone = timeZone
 
-        while index < periods.count && summaries.count < 7 {
-            let period = periods[index]
-            let dayName: String
-            if summaries.isEmpty {
-                dayName = "Today"
-            } else if let date = Self.iso8601Formatter.date(from: period.startTime) {
-                let formatter = Self.weekdayFormatter
-                formatter.timeZone = timeZone
-                dayName = formatter.string(from: date)
+        var groups: [(day: Date, periods: [ForecastPeriod])] = []
+        for period in periods {
+            guard let date = Self.iso8601Formatter.date(from: period.startTime) else { continue }
+            let day = calendar.startOfDay(for: date)
+            if let lastIndex = groups.indices.last, groups[lastIndex].day == day {
+                groups[lastIndex].periods.append(period)
             } else {
-                dayName = period.name
-            }
-
-            if period.isDaytime {
-                let night = (index + 1 < periods.count && !periods[index + 1].isDaytime) ? periods[index + 1] : nil
-                summaries.append(
-                    DailyForecastSummary(
-                        dayName: dayName,
-                        shortForecast: period.shortForecast,
-                        detailedForecast: period.detailedForecast ?? "",
-                        isDaytime: true,
-                        high: period.temperature,
-                        low: night?.temperature,
-                        // Use the daytime period's value so the number matches
-                        // NWS forecast briefings (not the day/night maximum).
-                        precipChance: precipChance(for: period)
-                    )
-                )
-                index += night == nil ? 1 : 2
-            } else {
-                // A leading night-only period ("Tonight").
-                summaries.append(
-                    DailyForecastSummary(
-                        dayName: dayName,
-                        shortForecast: period.shortForecast,
-                        detailedForecast: period.detailedForecast ?? "",
-                        isDaytime: false,
-                        high: nil,
-                        low: period.temperature,
-                        precipChance: precipChance(for: period)
-                    )
-                )
-                index += 1
+                groups.append((day, [period]))
             }
         }
-        return summaries
+
+        let formatter = Self.weekdayFormatter
+        formatter.timeZone = timeZone
+
+        return groups.prefix(7).enumerated().compactMap { offset, group in
+            let dayPeriod = group.periods.first(where: { $0.isDaytime })
+            let nightPeriod = group.periods.first(where: { !$0.isDaytime })
+            guard let primary = dayPeriod ?? nightPeriod else { return nil }
+
+            return DailyForecastSummary(
+                dayName: offset == 0 ? "Today" : formatter.string(from: group.day),
+                shortForecast: primary.shortForecast,
+                detailedForecast: primary.detailedForecast ?? "",
+                isDaytime: dayPeriod != nil,
+                high: dayPeriod?.temperature,
+                low: nightPeriod?.temperature,
+                // Use the daytime period's value so the number matches
+                // NWS forecast briefings (not the day/night maximum).
+                precipChance: precipChance(for: primary)
+            )
+        }
     }
 
     private func makeHourlySummaries(from periods: [ForecastPeriod], timeZone: TimeZone) -> [HourlyForecastSummary] {
@@ -240,8 +254,7 @@ final class WeatherService: ObservableObject {
         }
         var request = URLRequest(url: url)
         request.setValue("application/geo+json", forHTTPHeaderField: "Accept")
-        request.setValue("NWS Weather App (jacob@example.com)", forHTTPHeaderField: "User-Agent")
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await NetworkSessions.api.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse,
               200..<300 ~= httpResponse.statusCode else {
             throw WeatherError.invalidResponse
@@ -256,6 +269,13 @@ final class WeatherService: ObservableObject {
         return Int(value.rounded())
     }
 
+    private func fahrenheitValue(forCelsius celsius: Double?) -> Int? {
+        guard let celsius else { return nil }
+        let fahrenheit = Measurement(value: celsius, unit: UnitTemperature.celsius)
+            .converted(to: .fahrenheit).value
+        return Int(fahrenheit.rounded())
+    }
+
     private func feelsLikeText(heatIndex: Double?, windChill: Double?, temperature: Double?) -> String {
         let celsius = heatIndex ?? windChill ?? temperature
         guard let celsius else { return "--" }
@@ -268,9 +288,12 @@ final class WeatherService: ObservableObject {
         return "\(value.formatted(.number.precision(.fractionLength(0))))%"
     }
 
-    private func windSpeedText(for speed: Double?) -> String {
+    /// NWS stations report wind in km/h (wmoUnit:km_h-1), NOT m/s —
+    /// converting from the wrong unit inflated speeds 3.6×.
+    private func windSpeedText(for speed: Double?, unitCode: String?) -> String {
         guard let speed else { return "--" }
-        let mph = Measurement(value: speed, unit: UnitSpeed.metersPerSecond).converted(to: .milesPerHour).value
+        let unit: UnitSpeed = (unitCode?.contains("m_s") == true) ? .metersPerSecond : .kilometersPerHour
+        let mph = Measurement(value: speed, unit: unit).converted(to: .milesPerHour).value
         return "\(mph.formatted(.number.precision(.fractionLength(0)))) mph"
     }
 
@@ -319,6 +342,8 @@ struct ForecastSummary {
     let shortForecast: String
     let detailedForecast: String
     let wind: String
+    let windSpeedText: String      // e.g. "5 to 10 mph"
+    let windDirectionText: String  // e.g. "SW"
     let isDaytime: Bool
     let precipChance: Int
     let high: Int?
@@ -368,6 +393,11 @@ struct WeatherAlertSummary: Identifiable {
 }
 
 struct CurrentObservationSummary {
+    /// Observed air temperature in °F from the nearest station — the number
+    /// NWS shows as "current conditions" (the hero must use this, not the
+    /// forecast period temperature, which is today's high/low).
+    let temperatureValue: Int?
+    var temperatureText: String { temperatureValue.map { "\($0)°" } ?? "--" }
     let feelsLike: String
     let humidity: String
     let windSpeed: String
@@ -436,6 +466,18 @@ private struct ForecastPeriod: Decodable {
 
 private struct NWSQuantitativeValue: Decodable {
     let value: Double?
+    let unitCode: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case value, unitCode
+    }
+
+    init(from decoder: Decoder) throws {
+        // Forecast PoP entries have no unitCode; observations do.
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        value = try container.decodeIfPresent(Double.self, forKey: .value)
+        unitCode = try container.decodeIfPresent(String.self, forKey: .unitCode)
+    }
 }
 
 private struct NWSObservationStationsResponse: Decodable {
