@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xcodebuild -project \"NWS Weather App.xcodeproj\" -scheme \"NWS Weather App\" -destination \"platform=iOS Simulator,name=iPhone 16 Pro\" build)",
+      "Bash(sudo xcode-select -s /Applications/Xcode.app/Contents/Developer)",
+      "Bash(xcodebuild -version)",
+      "Bash(ls /Applications/ | grep -i xcode)",
+      "Bash(sudo xcode-select -s /Applications/Xcode-beta.app/Contents/Developer)",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer xcodebuild -project \"/Users/jseastrunk/Documents/Code Projects/NWS Weather App/NWS Weather App.xcodeproj\" -scheme \"NWS Weather App\" -destination \"platform=iOS Simulator,name=iPhone 16 Pro\" build)",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer xcodebuild -project \"/Users/jseastrunk/Documents/Code Projects/NWS Weather App/NWS Weather App.xcodeproj\" -scheme \"NWS Weather App\" -destination \"generic/platform=iOS Simulator\" build)"
+    ]
+  }
+}

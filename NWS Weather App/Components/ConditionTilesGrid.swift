@@ -5,6 +5,10 @@ import SwiftUI
 struct ConditionTilesGrid: View {
     let forecast: ForecastSummary?
     let observation: CurrentObservationSummary
+    /// Called when the user taps a tile backed by an hourly trend, so the
+    /// parent can flip it open into a full-screen chart. Pressure and
+    /// Visibility have no hourly series, so they stay static.
+    var onSelectMetric: (WeatherMetric) -> Void = { _ in }
 
     private let columns = [
         GridItem(.flexible(), spacing: 14),
@@ -13,25 +17,41 @@ struct ConditionTilesGrid: View {
 
     var body: some View {
         LazyVGrid(columns: columns, spacing: 14) {
-            ConditionTile(
-                icon: "thermometer.medium",
-                title: "Feels Like",
-                value: observation.feelsLike,
-                detailText: feelsLikeDetail
-            )
+            chartableTile(.temperature) {
+                ConditionTile(
+                    icon: "thermometer.medium",
+                    title: "Feels Like",
+                    value: observation.feelsLike,
+                    accent: WeatherMetric(.temperature).tint,
+                    isInteractive: true,
+                    detailText: feelsLikeDetail
+                )
+            }
 
-            ConditionTile(
-                icon: "humidity",
-                title: "Humidity",
-                value: observation.humidity,
-                detailText: "The dew point is \(observation.dewpoint) right now."
-            )
+            chartableTile(.humidity) {
+                ConditionTile(
+                    icon: "humidity",
+                    title: "Humidity",
+                    value: observation.humidity,
+                    accent: WeatherMetric(.humidity).tint,
+                    isInteractive: true,
+                    detailText: "The dew point is \(observation.dewpoint) right now."
+                )
+            }
 
-            ConditionTile(icon: "wind", title: "Wind", value: windValue) {
-                HStack(spacing: 6) {
-                    Image(systemName: "location.north.fill")
-                        .font(.caption2)
-                    Text(windDetail)
+            chartableTile(.wind) {
+                ConditionTile(
+                    icon: "wind",
+                    title: "Wind",
+                    value: windValue,
+                    accent: WeatherMetric(.wind).tint,
+                    isInteractive: true
+                ) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "location.north.fill")
+                            .font(.caption2)
+                        Text(windDetail)
+                    }
                 }
             }
 
@@ -49,13 +69,30 @@ struct ConditionTilesGrid: View {
                 detailText: visibilityDetail
             )
 
-            ConditionTile(
-                icon: "drop.fill",
-                title: "Precipitation",
-                value: "\(forecast?.precipChance ?? 0)%",
-                detailText: "Chance of precipitation \(forecast?.periodName.lowercased() ?? "today")."
-            )
+            chartableTile(.precipitation) {
+                ConditionTile(
+                    icon: "drop.fill",
+                    title: "Precipitation",
+                    value: "\(forecast?.precipChance ?? 0)%",
+                    accent: WeatherMetric(.precipitation).tint,
+                    isInteractive: true,
+                    detailText: "Chance of precipitation \(forecast?.periodName.lowercased() ?? "today")."
+                )
+            }
         }
+    }
+
+    /// Wraps a tile in a button that flips it open into its hourly chart.
+    private func chartableTile<Content: View>(
+        _ kind: WeatherMetric.Kind,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        Button {
+            onSelectMetric(WeatherMetric(kind))
+        } label: {
+            content()
+        }
+        .buttonStyle(TilePressStyle())
     }
 
     /// Stations often report null wind (calm or sensor gap) — fall back to
@@ -77,8 +114,13 @@ struct ConditionTilesGrid: View {
     }
 
     private var feelsLikeDetail: String {
-        guard let forecast else { return "Compared to the air temperature." }
-        return "Actual temperature is \(forecast.temperatureText)."
+        // Use the station's observed temperature, not the forecast period's
+        // value (which is today's high or tonight's low — never the actual
+        // current air temperature).
+        guard observation.temperatureValue != nil else {
+            return "Compared to the air temperature."
+        }
+        return "Actual temperature is \(observation.temperatureText)."
     }
 
     private var visibilityDetail: String {

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C \"/Users/jseastrunk/Documents/Code Projects/NWS Weather App\" worktree list)",
+      "Bash(git -C \"/Users/jseastrunk/Documents/Code Projects/NWS Weather App\" log --oneline -5)",
+      "Bash(git -C \"/Users/jseastrunk/Documents/Code Projects/NWS Weather App\" status)",
+      "Bash(rm \"/Users/jseastrunk/Documents/Code Projects/NWS Weather App/NWS Weather App/LocationManager.swift\" \"/Users/jseastrunk/Documents/Code Projects/NWS Weather App/NWS Weather App/WeatherService.swift\")",
+      "Bash(rm -rf \"/Users/jseastrunk/Documents/Code Projects/NWS Weather App/NWS Weather App/NWS Weather App/\")"
+    ]
+  }
+}
