@@ -139,6 +139,13 @@ final class WeatherService: ObservableObject {
                 currentObservation = nil
             }
             statusMessage = "Weather loaded."
+        } catch is CancellationError {
+            // Pull-to-refresh or a location switch superseded this load. A
+            // cancellation isn't a real failure, so keep the data already on
+            // screen instead of clearing it and flashing an error.
+        } catch let urlError as URLError where urlError.code == .cancelled {
+            // URLSession surfaces cancellation as URLError.cancelled rather than
+            // CancellationError — treat it the same way.
         } catch {
             guard activeLoadID == loadID else { return }
             clearWeather(status: "Unable to load weather: \(error.localizedDescription)")
@@ -206,10 +213,11 @@ final class WeatherService: ObservableObject {
         formatter.timeZone = timeZone
 
         return periods.prefix(24).enumerated().map { offset, period in
+            let date = Self.iso8601Formatter.date(from: period.startTime)
             let label: String
             if offset == 0 {
                 label = "Now"
-            } else if let date = Self.iso8601Formatter.date(from: period.startTime) {
+            } else if let date {
                 label = formatter.string(from: date)
             } else {
                 label = period.name
@@ -220,9 +228,22 @@ final class WeatherService: ObservableObject {
                 temperatureText: "\(period.temperature)°",
                 shortForecast: period.shortForecast,
                 precipChance: precipChance(for: period),
-                isDaytime: period.isDaytime
+                isDaytime: period.isDaytime,
+                date: date,
+                humidity: period.relativeHumidity?.value.map { Int($0.rounded()) },
+                dewpoint: fahrenheitValue(forCelsius: period.dewpoint?.value),
+                windSpeed: windSpeedMPH(from: period.windSpeed)
             )
         }
+    }
+
+    /// Pulls a representative mph number out of an NWS wind string such as
+    /// "10 mph" or "5 to 10 mph" (uses the upper bound of a range).
+    private func windSpeedMPH(from text: String) -> Double? {
+        let numbers = text
+            .components(separatedBy: CharacterSet.decimalDigits.inverted)
+            .compactMap(Double.init)
+        return numbers.max()
     }
 
     private func makeAlertSummaries(from response: NWSAlertResponse?, timeZone: TimeZone) -> [WeatherAlertSummary] {
@@ -376,6 +397,16 @@ struct HourlyForecastSummary: Identifiable {
     let shortForecast: String
     let precipChance: Int
     let isDaytime: Bool
+    /// Absolute start time of the hour — used as the X value when charting a
+    /// metric trend. Optional because a malformed timestamp shouldn't drop the
+    /// row from the scrolling forecast.
+    let date: Date?
+    /// Relative humidity (%) for this hour, when NWS provides it.
+    let humidity: Int?
+    /// Dew point (°F) for this hour, when NWS provides it.
+    let dewpoint: Int?
+    /// Sustained wind speed (mph) parsed from the NWS forecast string.
+    let windSpeed: Double?
 }
 
 struct WeatherAlertSummary: Identifiable {
@@ -462,6 +493,10 @@ private struct ForecastPeriod: Decodable {
     let shortForecast: String
     let detailedForecast: String?
     let probabilityOfPrecipitation: NWSQuantitativeValue
+    // Present on the hourly forecast feed; absent on some daily periods, so
+    // both are optional and decoded with decodeIfPresent (synthesized).
+    let relativeHumidity: NWSQuantitativeValue?
+    let dewpoint: NWSQuantitativeValue?
 }
 
 private struct NWSQuantitativeValue: Decodable {

@@ -16,6 +16,7 @@ struct ContentView: View {
     @State private var isShowingTools = false
     @State private var isShowingChat = false
     @State private var selectedAlert: WeatherAlertSummary?
+    @State private var selectedMetric: WeatherMetric?
     @AppStorage("saved_locations_data") private var savedLocationsData = ""
 
     var body: some View {
@@ -62,7 +63,12 @@ struct ContentView: View {
                     if let observation = weatherService.currentObservation {
                         ConditionTilesGrid(
                             forecast: weatherService.forecast,
-                            observation: observation
+                            observation: observation,
+                            onSelectMetric: { metric in
+                                withAnimation(.spring(response: 0.5, dampingFraction: 0.82)) {
+                                    selectedMetric = metric
+                                }
+                            }
                         )
                     }
 
@@ -99,6 +105,7 @@ struct ContentView: View {
                 .padding(.top, 6)
                 .padding(.bottom, 8)
         }
+        .overlay { metricOverlay }
         .preferredColorScheme(.dark)
         .sheet(isPresented: $isShowingLocations) {
             LocationsSheet(
@@ -371,6 +378,44 @@ struct ContentView: View {
             forecastText: weatherService.forecast?.shortForecast,
             isDaytime: weatherService.forecast?.isDaytime ?? true
         )
+    }
+
+    // MARK: - Metric detail overlay
+
+    @ViewBuilder private var metricOverlay: some View {
+        if let metric = selectedMetric {
+            ZStack {
+                Color.black.opacity(0.6)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .onTapGesture { dismissMetric() }
+
+                MetricDetailView(
+                    metric: metric,
+                    points: metric.series(from: weatherService.hourlyPeriods),
+                    currentText: currentText(for: metric),
+                    onClose: { dismissMetric() }
+                )
+                .transition(.metricFlip)
+            }
+        }
+    }
+
+    private func dismissMetric() {
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.82)) {
+            selectedMetric = nil
+        }
+    }
+
+    /// The live reading shown in the chart header, matching the chart's metric.
+    private func currentText(for metric: WeatherMetric) -> String {
+        guard let observation = weatherService.currentObservation else { return "--" }
+        switch metric.kind {
+        case .temperature: return observation.temperatureText
+        case .humidity: return observation.humidity
+        case .wind: return observation.windSpeed
+        case .precipitation: return "\(weatherService.forecast?.precipChance ?? 0)%"
+        }
     }
 
     // MARK: - Actions
