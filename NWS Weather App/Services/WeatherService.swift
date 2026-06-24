@@ -93,7 +93,11 @@ final class WeatherService: ObservableObject {
                 return
             }
 
-            dailyForecasts = makeDailySummaries(from: forecastResponse.properties.periods, timeZone: timeZone)
+            dailyForecasts = makeDailySummaries(
+                from: forecastResponse.properties.periods,
+                hourly: hourlyResponse.properties.periods,
+                timeZone: timeZone
+            )
             hourlyPeriods = makeHourlySummaries(from: hourlyResponse.properties.periods, timeZone: timeZone)
             alerts = makeAlertSummaries(from: alertResponse, timeZone: timeZone)
 
@@ -171,7 +175,11 @@ final class WeatherService: ObservableObject {
     /// Pairwise day/night walking mislabels overnight loads: at 1 AM the
     /// list starts with "Overnight" (night-only), so the old code emitted
     /// "Today" for it AND a separate "Wed" row for the same Wednesday.
-    private func makeDailySummaries(from periods: [ForecastPeriod], timeZone: TimeZone) -> [DailyForecastSummary] {
+    private func makeDailySummaries(
+        from periods: [ForecastPeriod],
+        hourly: [ForecastPeriod] = [],
+        timeZone: TimeZone
+    ) -> [DailyForecastSummary] {
         var calendar = Calendar.current
         calendar.timeZone = timeZone
 
@@ -194,13 +202,24 @@ final class WeatherService: ObservableObject {
             let nightPeriod = group.periods.first(where: { !$0.isDaytime })
             guard let primary = dayPeriod ?? nightPeriod else { return nil }
 
+            // Later in the day NWS drops the elapsed daytime period, so the
+            // daily feed no longer carries today's high (and a late-evening
+            // load can lack the overnight low too). Fall back to the hourly
+            // feed's temperatures for the same calendar day so the tile shows
+            // a real number instead of "--".
+            let hourlyTemps = hourly.compactMap { period -> Int? in
+                guard let date = Self.iso8601Formatter.date(from: period.startTime),
+                      calendar.startOfDay(for: date) == group.day else { return nil }
+                return period.temperature
+            }
+
             return DailyForecastSummary(
                 dayName: offset == 0 ? "Today" : formatter.string(from: group.day),
                 shortForecast: primary.shortForecast,
                 detailedForecast: primary.detailedForecast ?? "",
                 isDaytime: dayPeriod != nil,
-                high: dayPeriod?.temperature,
-                low: nightPeriod?.temperature,
+                high: dayPeriod?.temperature ?? hourlyTemps.max(),
+                low: nightPeriod?.temperature ?? hourlyTemps.min(),
                 // Use the daytime period's value so the number matches
                 // NWS forecast briefings (not the day/night maximum).
                 precipChance: precipChance(for: primary)
