@@ -83,7 +83,7 @@ struct AISummaryCard: View {
             .padding(16)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassEffect(.regular.tint(.white.opacity(0.05)), in: .rect(cornerRadius: 22))
+        .glassCard(cornerRadius: 22)
     }
 
     private var thinkingPlaceholder: some View {

@@ -21,6 +21,6 @@ struct SectionCard<Content: View>: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassEffect(.regular.tint(.white.opacity(0.05)), in: .rect(cornerRadius: 24))
+        .glassCard(cornerRadius: 24)
     }
 }

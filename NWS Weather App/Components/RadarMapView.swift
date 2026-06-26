@@ -16,7 +16,7 @@ struct RadarMapView: UIViewRepresentable {
     let spanDelta: Double
     /// When true, the historical loop frame replaces the live WMS product.
     let timelineActive: Bool
-    let timelineMinutesAgo: Int
+    let timelineFrameSource: RadarFrameSource
     /// Crossfade between loop frames (used during playback).
     let timelineAnimatesTransitions: Bool
     let onMapRegionChanged: ((MKMapRect, Int) -> Void)?
@@ -203,25 +203,25 @@ struct RadarMapView: UIViewRepresentable {
             coordinator.timelineOverlays.removeAll()
             coordinator.timelineRenderers.removeAll()
             coordinator.timelineFrontIndex = 0
-            coordinator.timelineMinutesAgo = -1
+            coordinator.timelineFrameSource = nil
             return
         }
 
         if coordinator.timelineOverlays.isEmpty {
             let front = RidgeTimelineTileOverlay()
-            front.minutesAgo = timelineMinutesAgo
+            front.source = timelineFrameSource
             let back = RidgeTimelineTileOverlay()
-            back.minutesAgo = timelineMinutesAgo
+            back.source = timelineFrameSource
             mapView.addOverlay(front, level: .aboveLabels)
             mapView.addOverlay(back, level: .aboveLabels)
             coordinator.timelineOverlays = [front, back]
             coordinator.timelineFrontIndex = 0
-            coordinator.timelineMinutesAgo = timelineMinutesAgo
+            coordinator.timelineFrameSource = timelineFrameSource
             return
         }
 
-        guard timelineMinutesAgo != coordinator.timelineMinutesAgo else { return }
-        coordinator.timelineMinutesAgo = timelineMinutesAgo
+        guard timelineFrameSource != coordinator.timelineFrameSource else { return }
+        coordinator.timelineFrameSource = timelineFrameSource
 
         let backIndex = 1 - coordinator.timelineFrontIndex
         let front = coordinator.timelineOverlays[coordinator.timelineFrontIndex]
@@ -230,12 +230,12 @@ struct RadarMapView: UIViewRepresentable {
         guard let frontRenderer = coordinator.timelineRenderers[ObjectIdentifier(front)],
               let backRenderer = coordinator.timelineRenderers[ObjectIdentifier(back)] else {
             // Renderers not realized yet (first frames) — update in place.
-            front.minutesAgo = timelineMinutesAgo
+            front.source = timelineFrameSource
             coordinator.timelineRenderers[ObjectIdentifier(front)]?.reloadData()
             return
         }
 
-        back.minutesAgo = timelineMinutesAgo
+        back.source = timelineFrameSource
         backRenderer.reloadData()
         coordinator.timelineFrontIndex = backIndex
 
@@ -369,7 +369,7 @@ struct RadarMapView: UIViewRepresentable {
         fileprivate var timelineOverlays: [RidgeTimelineTileOverlay] = []
         var timelineRenderers: [ObjectIdentifier: MKTileOverlayRenderer] = [:]
         var timelineFrontIndex = 0
-        var timelineMinutesAgo: Int = -1
+        var timelineFrameSource: RadarFrameSource?
         var fadeTask: Task<Void, Never>?
         var onMapTap: ((CLLocationCoordinate2D) -> Void)?
         var onSelectStormMarker: ((StormMarker) -> Void)?
@@ -769,11 +769,13 @@ fileprivate nonisolated final class NWSRadarTileOverlay: MKTileOverlay {
 /// `nonisolated` is required: MapKit calls `loadTile` on background queues.
 nonisolated final class RidgeTimelineTileOverlay: MKTileOverlay {
     private let lock = NSLock()
-    private var _minutesAgo = 0
+    private var _source: RadarFrameSource = .national(minutesAgo: 0)
 
-    var minutesAgo: Int {
-        get { lock.lock(); defer { lock.unlock() }; return _minutesAgo }
-        set { lock.lock(); _minutesAgo = newValue; lock.unlock() }
+    /// The imagery this overlay should draw — national mosaic offset or a
+    /// single-site RIDGE scan. Read/written from MapKit's background queues.
+    var source: RadarFrameSource {
+        get { lock.lock(); defer { lock.unlock() }; return _source }
+        set { lock.lock(); _source = newValue; lock.unlock() }
     }
 
     init() {
@@ -783,15 +785,15 @@ nonisolated final class RidgeTimelineTileOverlay: MKTileOverlay {
     }
 
     override func loadTile(at path: MKTileOverlayPath, result: @escaping @Sendable (Data?, Error?) -> Void) {
-        let offset = minutesAgo
+        let source = source
         let cache = RadarTileCache.shared
 
-        if let cached = cache.data(minutesAgo: offset, z: path.z, x: path.x, y: path.y) {
+        if let cached = cache.data(source: source, z: path.z, x: path.x, y: path.y) {
             result(cached, nil)
             return
         }
 
-        guard let url = RadarTileURL.make(minutesAgo: offset, z: path.z, x: path.x, y: path.y) else {
+        guard let url = RadarTileURL.make(source: source, z: path.z, x: path.x, y: path.y) else {
             result(nil, nil)
             return
         }
@@ -799,7 +801,7 @@ nonisolated final class RidgeTimelineTileOverlay: MKTileOverlay {
         NetworkSessions.tiles.dataTask(with: URLRequest(url: url)) { data, response, error in
             if let data,
                let http = response as? HTTPURLResponse, 200..<300 ~= http.statusCode {
-                cache.store(data, minutesAgo: offset, z: path.z, x: path.x, y: path.y)
+                cache.store(data, source: source, z: path.z, x: path.x, y: path.y)
                 result(data, nil)
             } else {
                 result(nil, error)

@@ -58,7 +58,7 @@ struct RadarView: View {
                 configuration: selectedConfiguration,
                 spanDelta: selectedSpanDelta,
                 timelineActive: !timeline.isLive,
-                timelineMinutesAgo: timeline.minutesAgo,
+                timelineFrameSource: timeline.currentSource,
                 timelineAnimatesTransitions: timeline.isPlaying,
                 onMapRegionChanged: { rect, zoom in
                     latestMapRect = rect
@@ -138,11 +138,31 @@ struct RadarView: View {
             async let radarSitesTask: Void = radarSiteService.loadNearestSite(for: coordinate)
             async let stormTracksTask: Void = stormTrackService.loadTracks(for: coordinate)
             _ = await (radarSitesTask, stormTracksTask)
-            // Pre-warm loop frames so the first play/scrub is instant.
+            // Tell the timeline which scope/site to animate, then pre-warm
+            // loop frames so the first play/scrub is instant.
+            configureTimeline()
             timeline.prepare(visibleMapRect: latestMapRect, zoom: latestZoom)
         }
         .onChange(of: coordinate?.latitude) { _, _ in selectedRadarSiteID = nil }
         .onChange(of: coordinate?.longitude) { _, _ in selectedRadarSiteID = nil }
+        .onChange(of: selectedScope) { _, _ in configureTimeline() }
+        .onChange(of: activeRadarSite?.radarID) { _, _ in configureTimeline() }
+    }
+
+    /// Keeps the timeline controller in sync with the scope/site/product the
+    /// user is viewing so the loop animates local single-site frames in local
+    /// mode and the national mosaic otherwise.
+    private func configureTimeline() {
+        timeline.configure(
+            scope: selectedScope,
+            siteID: selectedScope == .local ? activeRadarSite?.radarID : nil,
+            product: timelineProduct
+        )
+    }
+
+    /// IEM RIDGE single-site product code for the active radar.
+    private var timelineProduct: String {
+        activeRadarSite?.kind == .tdwr ? "TZL" : "N0B"
     }
 
     // MARK: - Overlay chrome

@@ -16,8 +16,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "F4C9FAD32F69139B00F1A8E8"
-               BuildableName = "NWS Weather App.app"
-               ReferencedContainer = "container:NWS Weather App.xcodeproj">
+               BuildableName = "OpenWx.app"
+               BlueprintName = "OpenWx"
+               ReferencedContainer = "container:OpenWx.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -45,8 +46,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "F4C9FAD32F69139B00F1A8E8"
-            BuildableName = "NWS Weather App.app"
-            ReferencedContainer = "container:NWS Weather App.xcodeproj">
+            BuildableName = "OpenWx.app"
+            BlueprintName = "OpenWx"
+            ReferencedContainer = "container:OpenWx.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -61,8 +63,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "F4C9FAD32F69139B00F1A8E8"
-            BuildableName = "NWS Weather App.app"
-            ReferencedContainer = "container:NWS Weather App.xcodeproj">
+            BuildableName = "OpenWx.app"
+            BlueprintName = "OpenWx"
+            ReferencedContainer = "container:OpenWx.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

@@ -32,9 +32,10 @@ struct AtmosphericBackground: View {
                 .blur(radius: 80)
                 .offset(x: 20, y: 320)
 
-            // Subtle horizon sheen for depth
+            // Subtle horizon sheen for depth — kept faint so the clear glass
+            // surfaces read against a clean dark field rather than haze.
             LinearGradient(
-                colors: [.clear, style.primaryGlow.opacity(0.05), .clear],
+                colors: [.clear, style.primaryGlow.opacity(0.03), .clear],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )

@@ -37,9 +37,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		F4C9FAD42F69139B00F1A8E8 /* NWS Weather App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "NWS Weather App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		F4C9FAE12F69139C00F1A8E8 /* NWS Weather AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "NWS Weather AppTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		F4C9FAEB2F69139C00F1A8E8 /* NWS Weather AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "NWS Weather AppUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		F4C9FAD42F69139B00F1A8E8 /* OpenWx.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenWx.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F4C9FAE12F69139C00F1A8E8 /* OpenWxTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenWxTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		F4C9FAEB2F69139C00F1A8E8 /* OpenWxUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenWxUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F4CA3F862FD9D3040003EC54 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		F4CA3F882FD9D3040003EC54 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
@@ -101,9 +101,9 @@
 		F4C9FAD52F69139B00F1A8E8 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				F4C9FAD42F69139B00F1A8E8 /* NWS Weather App.app */,
-				F4C9FAE12F69139C00F1A8E8 /* NWS Weather AppTests.xctest */,
-				F4C9FAEB2F69139C00F1A8E8 /* NWS Weather AppUITests.xctest */,
+				F4C9FAD42F69139B00F1A8E8 /* OpenWx.app */,
+				F4C9FAE12F69139C00F1A8E8 /* OpenWxTests.xctest */,
+				F4C9FAEB2F69139C00F1A8E8 /* OpenWxUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -120,9 +120,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		F4C9FAD32F69139B00F1A8E8 /* NWS Weather App */ = {
+		F4C9FAD32F69139B00F1A8E8 /* OpenWx */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = F4C9FAF52F69139C00F1A8E8 /* Build configuration list for PBXNativeTarget "NWS Weather App" */;
+			buildConfigurationList = F4C9FAF52F69139C00F1A8E8 /* Build configuration list for PBXNativeTarget "OpenWx" */;
 			buildPhases = (
 				F4C9FAD02F69139B00F1A8E8 /* Sources */,
 				F4C9FAD12F69139B00F1A8E8 /* Frameworks */,
@@ -136,16 +136,16 @@
 			fileSystemSynchronizedGroups = (
 				F4C9FAD62F69139B00F1A8E8 /* NWS Weather App */,
 			);
-			name = "NWS Weather App";
+			name = OpenWx;
 			packageProductDependencies = (
 			);
 			productName = "NWS Weather App";
-			productReference = F4C9FAD42F69139B00F1A8E8 /* NWS Weather App.app */;
+			productReference = F4C9FAD42F69139B00F1A8E8 /* OpenWx.app */;
 			productType = "com.apple.product-type.application";
 		};
-		F4C9FAE02F69139C00F1A8E8 /* NWS Weather AppTests */ = {
+		F4C9FAE02F69139C00F1A8E8 /* OpenWxTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = F4C9FAF82F69139C00F1A8E8 /* Build configuration list for PBXNativeTarget "NWS Weather AppTests" */;
+			buildConfigurationList = F4C9FAF82F69139C00F1A8E8 /* Build configuration list for PBXNativeTarget "OpenWxTests" */;
 			buildPhases = (
 				F4C9FADD2F69139C00F1A8E8 /* Sources */,
 				F4C9FADE2F69139C00F1A8E8 /* Frameworks */,
@@ -159,16 +159,16 @@
 			fileSystemSynchronizedGroups = (
 				F4C9FAE42F69139C00F1A8E8 /* NWS Weather AppTests */,
 			);
-			name = "NWS Weather AppTests";
+			name = OpenWxTests;
 			packageProductDependencies = (
 			);
 			productName = "NWS Weather AppTests";
-			productReference = F4C9FAE12F69139C00F1A8E8 /* NWS Weather AppTests.xctest */;
+			productReference = F4C9FAE12F69139C00F1A8E8 /* OpenWxTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		F4C9FAEA2F69139C00F1A8E8 /* NWS Weather AppUITests */ = {
+		F4C9FAEA2F69139C00F1A8E8 /* OpenWxUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = F4C9FAFB2F69139C00F1A8E8 /* Build configuration list for PBXNativeTarget "NWS Weather AppUITests" */;
+			buildConfigurationList = F4C9FAFB2F69139C00F1A8E8 /* Build configuration list for PBXNativeTarget "OpenWxUITests" */;
 			buildPhases = (
 				F4C9FAE72F69139C00F1A8E8 /* Sources */,
 				F4C9FAE82F69139C00F1A8E8 /* Frameworks */,
@@ -182,11 +182,11 @@
 			fileSystemSynchronizedGroups = (
 				F4C9FAEE2F69139C00F1A8E8 /* NWS Weather AppUITests */,
 			);
-			name = "NWS Weather AppUITests";
+			name = OpenWxUITests;
 			packageProductDependencies = (
 			);
 			productName = "NWS Weather AppUITests";
-			productReference = F4C9FAEB2F69139C00F1A8E8 /* NWS Weather AppUITests.xctest */;
+			productReference = F4C9FAEB2F69139C00F1A8E8 /* OpenWxUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -212,7 +212,7 @@
 					};
 				};
 			};
-			buildConfigurationList = F4C9FACF2F69139B00F1A8E8 /* Build configuration list for PBXProject "NWS Weather App" */;
+			buildConfigurationList = F4C9FACF2F69139B00F1A8E8 /* Build configuration list for PBXProject "OpenWx" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -226,9 +226,9 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				F4C9FAD32F69139B00F1A8E8 /* NWS Weather App */,
-				F4C9FAE02F69139C00F1A8E8 /* NWS Weather AppTests */,
-				F4C9FAEA2F69139C00F1A8E8 /* NWS Weather AppUITests */,
+				F4C9FAD32F69139B00F1A8E8 /* OpenWx */,
+				F4C9FAE02F69139C00F1A8E8 /* OpenWxTests */,
+				F4C9FAEA2F69139C00F1A8E8 /* OpenWxUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -284,12 +284,12 @@
 /* Begin PBXTargetDependency section */
 		F4C9FAE32F69139C00F1A8E8 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = F4C9FAD32F69139B00F1A8E8 /* NWS Weather App */;
+			target = F4C9FAD32F69139B00F1A8E8 /* OpenWx */;
 			targetProxy = F4C9FAE22F69139C00F1A8E8 /* PBXContainerItemProxy */;
 		};
 		F4C9FAED2F69139C00F1A8E8 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = F4C9FAD32F69139B00F1A8E8 /* NWS Weather App */;
+			target = F4C9FAD32F69139B00F1A8E8 /* OpenWx */;
 			targetProxy = F4C9FAEC2F69139C00F1A8E8 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -508,7 +508,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NWS Weather App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NWS Weather App";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/OpenWx.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/OpenWx";
 			};
 			name = Debug;
 		};
@@ -530,7 +530,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NWS Weather App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NWS Weather App";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/OpenWx.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/OpenWx";
 			};
 			name = Release;
 		};
@@ -577,7 +577,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		F4C9FACF2F69139B00F1A8E8 /* Build configuration list for PBXProject "NWS Weather App" */ = {
+		F4C9FACF2F69139B00F1A8E8 /* Build configuration list for PBXProject "OpenWx" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				F4C9FAF32F69139C00F1A8E8 /* Debug */,
@@ -586,7 +586,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		F4C9FAF52F69139C00F1A8E8 /* Build configuration list for PBXNativeTarget "NWS Weather App" */ = {
+		F4C9FAF52F69139C00F1A8E8 /* Build configuration list for PBXNativeTarget "OpenWx" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				F4C9FAF62F69139C00F1A8E8 /* Debug */,
@@ -595,7 +595,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		F4C9FAF82F69139C00F1A8E8 /* Build configuration list for PBXNativeTarget "NWS Weather AppTests" */ = {
+		F4C9FAF82F69139C00F1A8E8 /* Build configuration list for PBXNativeTarget "OpenWxTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				F4C9FAF92F69139C00F1A8E8 /* Debug */,
@@ -604,7 +604,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		F4C9FAFB2F69139C00F1A8E8 /* Build configuration list for PBXNativeTarget "NWS Weather AppUITests" */ = {
+		F4C9FAFB2F69139C00F1A8E8 /* Build configuration list for PBXNativeTarget "OpenWxUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				F4C9FAFC2F69139C00F1A8E8 /* Debug */,

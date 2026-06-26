@@ -22,14 +22,14 @@ struct WeatherCard<Content: View>: View {
             .padding(.bottom, 10)
 
             Rectangle()
-                .fill(.white.opacity(0.14))
+                .fill(.white.opacity(0.10))
                 .frame(height: 0.5)
                 .padding(.horizontal, 16)
 
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassEffect(.regular.tint(.white.opacity(0.05)), in: .rect(cornerRadius: 22))
+        .glassCard(cornerRadius: 22)
     }
 }
 
@@ -83,7 +83,7 @@ struct ConditionTile<Detail: View>: View {
         // Tile bodies stay neutral (like Apple Weather) so a warm accent can't
         // tint the glass and blend into the background. The accent lives only
         // in the icon and the chart glyph.
-        .glassEffect(.regular.tint(.white.opacity(0.05)), in: .rect(cornerRadius: 22))
+        .glassCard(cornerRadius: 22)
     }
 }
 

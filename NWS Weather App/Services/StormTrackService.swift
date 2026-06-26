@@ -8,9 +8,17 @@ final class StormTrackService: ObservableObject {
     @Published private(set) var alertPolygons: [AlertPolygon] = []
     @Published private(set) var stormMarkers: [StormMarker] = []
 
-    // Compiled once at class load time rather than inside the hot path
+    // Compiled once at class load time rather than inside the hot path.
+    // The direction group allows multi-word / hyphenated headings such as
+    // "EAST-NORTHEAST" or "NORTH NORTHEAST" (older "MOVING E AT" forms still
+    // match too).
     private static let motionPattern = try? NSRegularExpression(
-        pattern: #"MOVING\s+([A-Z]+)\s+AT\s+(\d+)\s+(MPH|KTS)"#
+        pattern: #"MOVING\s+([A-Z][A-Z\s\-]*?)\s+AT\s+(\d+)\s+(MPH|KTS|KT)"#
+    )
+
+    // Structured NWS storm-motion vector: "<ISO time>...storm...<bbb>DEG...<sss>KT".
+    private static let motionVectorPattern = try? NSRegularExpression(
+        pattern: #"(\d{1,3})\s*DEG.*?(\d{1,3})\s*KT"#
     )
 
     func loadTracks(for coordinate: CLLocationCoordinate2D) async {
@@ -90,7 +98,10 @@ final class StormTrackService: ObservableObject {
             tracks.append(StormTrack(coordinates: ring, style: .warningArea))
 
             let center = centroid(for: ring)
-            let motion = motionDescription(from: feature.properties.description ?? "")
+            // Prefer the structured storm-motion vector NWS ships in the
+            // alert parameters; fall back to scraping the prose description.
+            let motion = motionVector(from: feature.properties.parameters)
+                ?? motionDescription(from: feature.properties.description ?? "")
             markers.append(
                 StormMarker(
                     id: feature.id,
@@ -190,6 +201,32 @@ final class StormTrackService: ObservableObject {
         let text: String
     }
 
+    /// Parses NWS's machine-readable storm-motion vector out of the alert
+    /// `parameters` dictionary (key `eventMotionDescription`). Its degrees
+    /// are the bearing the storm is moving *from* (meteorological "from"
+    /// convention), so the travel heading is that value plus 180°.
+    private func motionVector(from parameters: MotionParameters?) -> Motion? {
+        guard let raw = parameters?.eventMotionDescription?.first,
+              let expression = StormTrackService.motionVectorPattern else { return nil }
+        let upper = raw.uppercased()
+        let range = NSRange(upper.startIndex..., in: upper)
+        guard let match = expression.firstMatch(in: upper, range: range),
+              let degRange = Range(match.range(at: 1), in: upper),
+              let ktRange = Range(match.range(at: 2), in: upper),
+              let fromBearing = Double(upper[degRange]),
+              let knots = Double(upper[ktRange]) else {
+            return nil
+        }
+
+        let heading = (fromBearing + 180).truncatingRemainder(dividingBy: 360)
+        let mph = knots * 1.15078
+        return Motion(
+            bearing: heading,
+            metersPerSecond: knots * 0.514444,
+            text: "Moving \(compassWord(forBearing: heading)) at \(Int(mph.rounded())) mph"
+        )
+    }
+
     private func motionDescription(from description: String) -> Motion? {
         guard let expression = StormTrackService.motionPattern else { return nil }
         let upper = description.uppercased()
@@ -201,17 +238,18 @@ final class StormTrackService: ObservableObject {
             return nil
         }
 
-        let direction = String(upper[dirRange])
+        let direction = String(upper[dirRange]).trimmingCharacters(in: .whitespaces)
         let speedText = String(upper[speedRange])
         let unit = String(upper[unitRange])
         guard let bearing = bearing(for: direction), let speedValue = Double(speedText) else { return nil }
 
-        let mps = unit == "KTS" ? speedValue * 0.514444 : speedValue * 0.44704
-        let mph = unit == "KTS" ? speedValue * 1.15078 : speedValue
+        let isKnots = unit.hasPrefix("KT")
+        let mps = isKnots ? speedValue * 0.514444 : speedValue * 0.44704
+        let mph = isKnots ? speedValue * 1.15078 : speedValue
         return Motion(
             bearing: bearing,
             metersPerSecond: mps,
-            text: "Moving \(direction) at \(Int(mph.rounded())) mph"
+            text: "Moving \(direction.capitalized) at \(Int(mph.rounded())) mph"
         )
     }
 
@@ -260,15 +298,44 @@ final class StormTrackService: ObservableObject {
         )
     }
 
+    /// Accepts NWS abbreviations ("NE", "ENE") and the spelled-out forms used
+    /// in warning prose ("NORTHEAST", "EAST-NORTHEAST", "NORTH NORTHEAST").
     private func bearing(for direction: String) -> Double? {
-        switch direction {
-        case "N": return 0; case "NNE": return 22.5; case "NE": return 45
-        case "ENE": return 67.5; case "E": return 90; case "ESE": return 112.5
-        case "SE": return 135; case "SSE": return 157.5; case "S": return 180
-        case "SSW": return 202.5; case "SW": return 225; case "WSW": return 247.5
-        case "W": return 270; case "WNW": return 292.5; case "NW": return 315
-        case "NNW": return 337.5; default: return nil
+        let key = direction
+            .uppercased()
+            .replacingOccurrences(of: "-", with: "")
+            .replacingOccurrences(of: " ", with: "")
+        switch key {
+        case "N", "NORTH": return 0
+        case "NNE", "NORTHNORTHEAST": return 22.5
+        case "NE", "NORTHEAST": return 45
+        case "ENE", "EASTNORTHEAST": return 67.5
+        case "E", "EAST": return 90
+        case "ESE", "EASTSOUTHEAST": return 112.5
+        case "SE", "SOUTHEAST": return 135
+        case "SSE", "SOUTHSOUTHEAST": return 157.5
+        case "S", "SOUTH": return 180
+        case "SSW", "SOUTHSOUTHWEST": return 202.5
+        case "SW", "SOUTHWEST": return 225
+        case "WSW", "WESTSOUTHWEST": return 247.5
+        case "W", "WEST": return 270
+        case "WNW", "WESTNORTHWEST": return 292.5
+        case "NW", "NORTHWEST": return 315
+        case "NNW", "NORTHNORTHWEST": return 337.5
+        default: return nil
         }
+    }
+
+    private static let compassPoints = [
+        "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+        "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"
+    ]
+
+    private func compassWord(forBearing bearing: Double) -> String {
+        let normalized = (bearing.truncatingRemainder(dividingBy: 360) + 360)
+            .truncatingRemainder(dividingBy: 360)
+        let index = Int((normalized / 22.5).rounded()) % 16
+        return Self.compassPoints[index]
     }
 }
 
@@ -302,6 +369,14 @@ private struct AlertProperties: Decodable {
     let ends: String?
     let expires: String?
     let affectedZones: [String]?
+    /// NWS ships extra fields here; we only need the structured storm-motion
+    /// vector. Scoping the type to one key keeps an unexpected `parameters`
+    /// shape from failing the whole alert decode.
+    let parameters: MotionParameters?
+}
+
+private struct MotionParameters: Decodable {
+    let eventMotionDescription: [String]?
 }
 
 private struct ZoneResponse: Decodable {
