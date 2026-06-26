@@ -45,19 +45,9 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		F4C9FAD62F69139B00F1A8E8 /* NWS Weather App */ = {
+		F4C9FAD62F69139B00F1A8E8 /* OpenWx */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "NWS Weather App";
-			sourceTree = "<group>";
-		};
-		F4C9FAE42F69139C00F1A8E8 /* NWS Weather AppTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "NWS Weather AppTests";
-			sourceTree = "<group>";
-		};
-		F4C9FAEE2F69139C00F1A8E8 /* NWS Weather AppUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "NWS Weather AppUITests";
+			path = OpenWx;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -90,9 +80,7 @@
 		F4C9FACB2F69139B00F1A8E8 = {
 			isa = PBXGroup;
 			children = (
-				F4C9FAD62F69139B00F1A8E8 /* NWS Weather App */,
-				F4C9FAE42F69139C00F1A8E8 /* NWS Weather AppTests */,
-				F4C9FAEE2F69139C00F1A8E8 /* NWS Weather AppUITests */,
+				F4C9FAD62F69139B00F1A8E8 /* OpenWx */,
 				F4CA3F852FD9D3040003EC54 /* Frameworks */,
 				F4C9FAD52F69139B00F1A8E8 /* Products */,
 			);
@@ -134,7 +122,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				F4C9FAD62F69139B00F1A8E8 /* NWS Weather App */,
+				F4C9FAD62F69139B00F1A8E8 /* OpenWx */,
 			);
 			name = OpenWx;
 			packageProductDependencies = (
@@ -156,9 +144,6 @@
 			dependencies = (
 				F4C9FAE32F69139C00F1A8E8 /* PBXTargetDependency */,
 			);
-			fileSystemSynchronizedGroups = (
-				F4C9FAE42F69139C00F1A8E8 /* NWS Weather AppTests */,
-			);
 			name = OpenWxTests;
 			packageProductDependencies = (
 			);
@@ -178,9 +163,6 @@
 			);
 			dependencies = (
 				F4C9FAED2F69139C00F1A8E8 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				F4C9FAEE2F69139C00F1A8E8 /* NWS Weather AppUITests */,
 			);
 			name = OpenWxUITests;
 			packageProductDependencies = (
@@ -423,12 +405,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "NWS Weather App/NWS_Weather_App.entitlements";
+				CODE_SIGN_ENTITLEMENTS = OpenWx/OpenWx.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = U3ZR3ZV6N4;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = OpenWx;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.weather";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Your location is used to fetch the local NWS weather forecast.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -442,7 +425,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.1;
-				PRODUCT_BUNDLE_IDENTIFIER = None.NWSWeatherAppJS;
+				PRODUCT_BUNDLE_IDENTIFIER = None.OpenWx;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -459,12 +442,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "NWS Weather App/NWS_Weather_App.entitlements";
+				CODE_SIGN_ENTITLEMENTS = OpenWx/OpenWx.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = U3ZR3ZV6N4;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = OpenWx;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.weather";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Your location is used to fetch the local NWS weather forecast.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -478,7 +462,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.1;
-				PRODUCT_BUNDLE_IDENTIFIER = None.NWSWeatherAppJS;
+				PRODUCT_BUNDLE_IDENTIFIER = None.OpenWx;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -550,7 +534,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = "NWS Weather App";
+				TEST_TARGET_NAME = OpenWx;
 			};
 			name = Debug;
 		};
@@ -570,7 +554,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = "NWS Weather App";
+				TEST_TARGET_NAME = OpenWx;
 			};
 			name = Release;
 		};

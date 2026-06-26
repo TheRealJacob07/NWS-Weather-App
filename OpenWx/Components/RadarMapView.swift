@@ -154,7 +154,7 @@ struct RadarMapView: UIViewRepresentable {
     }
 
     /// Visible map rect padded 50% so slight pans don't trigger rebuilds.
-    nonisolated static func paddedVisibleRect(of mapView: MKMapView) -> MKMapRect {
+    @MainActor static func paddedVisibleRect(of mapView: MKMapView) -> MKMapRect {
         mapView.visibleMapRect.insetBy(
             dx: -mapView.visibleMapRect.width * 0.5,
             dy: -mapView.visibleMapRect.height * 0.5

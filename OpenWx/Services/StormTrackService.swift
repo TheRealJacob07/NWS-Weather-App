@@ -410,7 +410,7 @@ private struct GeoJSONGeometry: Decodable {
         }
     }
 
-    private static func ring(from points: [[Double]]) -> [CLLocationCoordinate2D] {
+    private nonisolated static func ring(from points: [[Double]]) -> [CLLocationCoordinate2D] {
         points.compactMap { point in
             guard point.count >= 2 else { return nil }
             return CLLocationCoordinate2D(latitude: point[1], longitude: point[0])
