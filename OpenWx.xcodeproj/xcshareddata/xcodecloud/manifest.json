@@ -3,7 +3,7 @@
   "targets" : [
     {
       "id" : "72c8c429-b7a8-4685-bd11-a7cbdd21d8e6",
-      "name" : "NWS Weather App"
+      "name" : "OpenWx"
     }
   ]
 }
